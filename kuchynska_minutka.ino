@@ -689,6 +689,12 @@ void drawReadyScreen() {
 
   char buf[6];
   formatTime(remainingSeconds, buf);
+  if (currentMode == MODE_NONE && remainingSeconds == 0) {
+    const char* prompt = "Nastav čas";
+    u8g2.setFont(MODE_FONT);
+    int promptWidth = u8g2.getUTF8Width(prompt);
+    u8g2.drawUTF8((128 - promptWidth) / 2, 18, prompt);
+  }
   u8g2.setFont(u8g2_font_logisoso32_tn);
   int tw = u8g2.getStrWidth(buf);
   u8g2.drawStr((128 - tw) / 2, 50, buf);
@@ -767,10 +773,18 @@ void drawAlarmScreen() {
     u8g2.drawStr((128 - tw) / 2, 42, msg);
   }
 
-  u8g2.setFont(u8g2_font_7x14B_tr);
   const char* done = "HOTOVO!";
-  int dw = u8g2.getStrWidth(done);
-  u8g2.drawStr((128 - dw) / 2, 60, done);
+  if (currentMode == MODE_EGG_SOFT || currentMode == MODE_EGG_HARD) {
+    done = "Vajíčka hotové";
+  } else if (currentMode == MODE_DUMPLING) {
+    done = "Knedlík hotový";
+  } else if (currentMode == MODE_PIZZA) {
+    done = "Pizza hotová";
+  }
+
+  u8g2.setFont(MODE_FONT);
+  int dw = u8g2.getUTF8Width(done);
+  u8g2.drawUTF8((128 - dw) / 2, 62, done);
 }
 
 // =========================================================
