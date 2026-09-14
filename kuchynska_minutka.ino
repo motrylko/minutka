@@ -129,6 +129,7 @@ enum TimerMode  : uint8_t { MODE_NONE, MODE_EGG_SOFT, MODE_EGG_HARD, MODE_DUMPLI
 // sa cez u8g2.drawUTF8()/getUTF8Width(), NIE cez drawStr()/getStrWidth(),
 // lebo tie neviem dekodovat viacbajtove UTF-8 znaky.
 const char* modeNames[MODE_COUNT] = { "", "Vajíčko na mäkko", "Vajíčko na tvrdo", "Knedlík", "Pizza" };
+const char* modeDisplayNames[MODE_COUNT] = { "", "Vajicko na makko", "Vajicko na tvrdo", "Knedlik", "Pizza" };
 
 // ---------- Vlastny font pre nazvy rezimov (slovenska diakritika) ----------
 // Povodny u8g2_font_unifont_t_polish obsahoval LEN polske znaky a
@@ -627,11 +628,11 @@ void formatTime(unsigned long totalSeconds, char* buf) {
 // textu (UTF-8, kvoli diakritike). Ak je aktivny ziadny-mod, nic nekresli.
 void drawModeNameCentered(int16_t y) {
   if (currentMode == MODE_NONE) return;
-  u8g2.setFont(MODE_FONT);
-  int w = u8g2.getUTF8Width(modeNames[currentMode]);
+  u8g2.setFont(u8g2_font_6x10_tf);
+  int w = u8g2.getStrWidth(modeDisplayNames[currentMode]);
   int16_t x = (128 - w) / 2;
   if (x < 0) x = 0; // poistka pre pripad, ze by bol nazov sirsi ako displej
-  u8g2.drawUTF8(x, y, modeNames[currentMode]);
+  u8g2.drawStr(x, y, modeDisplayNames[currentMode]);
 }
 
 void drawScreen() {
@@ -651,7 +652,7 @@ void drawScreen() {
 void drawReadyScreen() {
   // Nazov rezimu (vyssi Unifont font kvoli diakritike - preto y o kusok
   // nizsie ako povodnych 10 px, aby sa cely zmestil od horneho okraja)
-  drawModeNameCentered(14);
+  drawModeNameCentered(10);
 
   if (millis() < savedMsgUntil) {
     const char* msg = "ULOZENE!";
@@ -672,7 +673,7 @@ void drawRunningScreen() {
   bool hasName = (currentMode != MODE_NONE);
 
   if (hasName) {
-    drawModeNameCentered(14); // centrovane, vyssi Unifont font kvoli diakritike
+    drawModeNameCentered(10);
   }
 
   // Poloha digitalneho casu: font zvacseny z logisoso24 na logisoso26
@@ -730,7 +731,7 @@ void drawRunningScreen() {
 
 void drawAlarmScreen() {
   // Nazov rezimu (vyssi Unifont font kvoli diakritike)
-  drawModeNameCentered(14);
+  drawModeNameCentered(10);
 
   if ((millis() / 300) % 2 == 0) {
     u8g2.setFont(u8g2_font_logisoso24_tn);
@@ -761,6 +762,7 @@ void drawEggPotAnimation(int16_t cx, int16_t baseY) {
 
   // telo hrnca
   u8g2.drawFrame(cx - potHalfW, potTopY, potHalfW * 2, potH);
+  u8g2.drawHLine(cx - potHalfW, baseY, potHalfW * 2 + 1);
 
   // uska (drzadla) - mimo tela hrnca, po stranach, aby nezasahovali do vajicok
   u8g2.drawCircle(cx - potHalfW - 3, potTopY + potH / 2, 3, U8G2_DRAW_UPPER_LEFT | U8G2_DRAW_LOWER_LEFT);
