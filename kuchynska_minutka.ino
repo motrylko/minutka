@@ -636,10 +636,13 @@ void drawModeNameCentered(int16_t y, bool compact) {
   if (compact) {
     u8g2.drawStr(x, y, name);
 
-    int16_t accentY = y - 8;
+    int16_t accentY = y - 7;
     if (currentMode == MODE_EGG_SOFT || currentMode == MODE_EGG_HARD) {
       int16_t iX = x + 3 * 6;
       int16_t cX = x + 4 * 6;
+      u8g2.setDrawColor(0);
+      u8g2.drawPixel(iX + 2, y - 7);
+      u8g2.setDrawColor(1);
       u8g2.drawLine(iX + 1, accentY, iX + 3, accentY - 2);
       u8g2.drawLine(cX + 1, accentY - 1, cX + 2, accentY);
       u8g2.drawLine(cX + 4, accentY - 1, cX + 3, accentY);
