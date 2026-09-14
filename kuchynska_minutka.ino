@@ -689,7 +689,7 @@ void drawReadyScreen() {
 
   char buf[6];
   formatTime(remainingSeconds, buf);
-  if (currentMode == MODE_NONE && remainingSeconds == 0) {
+  if (currentMode == MODE_NONE) {
     const char* prompt = "Nastav čas";
     u8g2.setFont(MODE_FONT);
     int promptWidth = u8g2.getUTF8Width(prompt);
@@ -774,7 +774,9 @@ void drawAlarmScreen() {
   }
 
   const char* done = "HOTOVO!";
-  if (currentMode == MODE_EGG_SOFT || currentMode == MODE_EGG_HARD) {
+  if (currentMode == MODE_NONE) {
+    done = "ČAS UPLYNUL";
+  } else if (currentMode == MODE_EGG_SOFT || currentMode == MODE_EGG_HARD) {
     done = "Vajíčka hotové";
   } else if (currentMode == MODE_DUMPLING) {
     done = "Knedlík hotový";
