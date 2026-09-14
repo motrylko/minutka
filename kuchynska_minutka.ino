@@ -958,11 +958,11 @@ void drawSteamAnimation(int16_t cx, int16_t baseY, bool isPizza) {
     // Špička smeruje doprava. Telo je vyplnené bielou a
     // ingrediencie sú čierne, takže na OLED vznikne výrazná
     // ikonka aj pri malom rozlíšení.
-    const int16_t backX = cx - 17;
-    const int16_t topY  = baseY - 25;
+    const int16_t backX = cx - 27;
+    const int16_t topY  = baseY - 27;
     const int16_t botY  = baseY;
-    const int16_t tipX  = cx + 18;
-    const int16_t tipY  = baseY - 11;
+    const int16_t tipX  = cx + 28;
+    const int16_t tipY  = baseY - 12;
 
     // Vyplnenie trojuholníka scanline metódou. drawTriangle()
     // samotné telo iba obkreslí, preto ho tu vypĺňame riadok po riadku.
@@ -983,15 +983,15 @@ void drawSteamAnimation(int16_t cx, int16_t baseY, bool isPizza) {
     u8g2.drawLine(backX, botY, tipX, tipY);
 
     // Hrubsi zakriveny okrajok na sirokej zadnej strane pizze.
-    const int16_t crustMidY = topY + 12;
+    const int16_t crustMidY = topY + 13;
     u8g2.drawLine(backX + 5, topY, backX + 1, crustMidY);
     u8g2.drawLine(backX + 1, crustMidY, backX + 5, botY);
     u8g2.drawLine(backX + 8, topY + 1, backX + 4, crustMidY);
     u8g2.drawLine(backX + 4, crustMidY, backX + 8, botY - 1);
 
-    const int8_t dx[6] = { -12, -2, 9, -7, 5, 14 };
-    const int8_t dy[6] = { -10, -11, -9, -5, -5, -6 };
-    const uint8_t radius[6] = { 3, 3, 3, 3, 3, 2 };
+    const int8_t dx[6] = { -17, -6, 7, -11, 3, 17 };
+    const int8_t dy[6] = { -17, -18, -15, -9, -9, -11 };
+    const uint8_t radius[6] = { 2, 2, 2, 2, 2, 2 };
 
     for (uint8_t i = 0; i < 6; i++) {
       int16_t tx = cx + dx[i];
@@ -1014,7 +1014,7 @@ void drawSteamAnimation(int16_t cx, int16_t baseY, bool isPizza) {
   }
 
   const int16_t steamTopY = baseY - 35;
-  const int16_t steamBottomY = isPizza ? baseY - 17 : baseY - 20;
+  const int16_t steamBottomY = isPizza ? baseY - 28 : baseY - 20;
 
   for (uint8_t i = 0; i < 3; i++) {
     int16_t sx = cx - 10 + i * 10;
