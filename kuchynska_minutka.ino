@@ -985,12 +985,12 @@ void drawSteamAnimation(int16_t cx, int16_t baseY, bool isPizza) {
     u8g2.drawLine(backX + 6, topY, tipX, tipY);
     u8g2.drawLine(backX + 6, botY, tipX, tipY);
 
-    // Hruby zakriveny cierny pas predstavuje viditelny okrajok pizze.
+    // Vnutorna cierna krivka oddeluje biely zakriveny okrajok od syra.
     u8g2.setDrawColor(0);
     for (int16_t y = topY; y <= botY; y++) {
       int16_t distanceFromMiddle = abs(y - crustMidY);
       int16_t outerX = backX + (distanceFromMiddle * 6) / 13;
-      u8g2.drawHLine(outerX, y, 4);
+      u8g2.drawHLine(outerX + 5, y, 2);
     }
     u8g2.setDrawColor(1);
 
