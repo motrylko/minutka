@@ -969,9 +969,9 @@ void drawSteamAnimation(int16_t cx, int16_t baseY, bool isPizza) {
     // Bočná vrstva pod spodnou hranou dáva plátku tretí rozmer.
     for (int16_t x = backX + 6; x <= tipX; x++) {
       int16_t edgeY = topBotY - (int16_t)((float)(x - (backX + 6)) * (topBotY - tipY) / (float)(tipX - backX - 6));
-      u8g2.drawVLine(x, edgeY, baseY - edgeY + 1);
+      u8g2.drawVLine(x, edgeY, 4);
     }
-    u8g2.drawLine(backX + 6, botY, tipX, tipY + 3);
+    u8g2.drawLine(backX + 6, topBotY + 3, tipX, tipY + 3);
 
     // Zaobleny biely zadny okrajok, podobny hrubej kor ke na referencii.
     u8g2.drawFilledEllipse(backX + 6, crustMidY, 6, 13, U8G2_DRAW_ALL);
