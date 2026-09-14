@@ -626,13 +626,35 @@ void formatTime(unsigned long totalSeconds, char* buf) {
 
 // Vykresli nazov aktualneho rezimu vycentrovany podla skutocnej dlzky
 // textu (UTF-8, kvoli diakritike). Ak je aktivny ziadny-mod, nic nekresli.
-void drawModeNameCentered(int16_t y) {
+void drawModeNameCentered(int16_t y, bool compact) {
   if (currentMode == MODE_NONE) return;
-  u8g2.setFont(u8g2_font_6x10_tf);
-  int w = u8g2.getStrWidth(modeDisplayNames[currentMode]);
+  const char* name = compact ? modeDisplayNames[currentMode] : modeNames[currentMode];
+  u8g2.setFont(compact ? u8g2_font_6x10_tf : MODE_FONT);
+  int w = compact ? u8g2.getStrWidth(name) : u8g2.getUTF8Width(name);
   int16_t x = (128 - w) / 2;
   if (x < 0) x = 0; // poistka pre pripad, ze by bol nazov sirsi ako displej
-  u8g2.drawStr(x, y, modeDisplayNames[currentMode]);
+  if (compact) {
+    u8g2.drawStr(x, y, name);
+
+    int16_t accentY = y - 1;
+    if (currentMode == MODE_EGG_SOFT || currentMode == MODE_EGG_HARD) {
+      int16_t iX = x + 3 * 6;
+      int16_t cX = x + 4 * 6;
+      u8g2.drawLine(iX + 1, accentY, iX + 3, accentY - 2);
+      u8g2.drawLine(cX + 1, accentY - 1, cX + 2, accentY);
+      u8g2.drawLine(cX + 4, accentY - 1, cX + 3, accentY);
+      if (currentMode == MODE_EGG_SOFT) {
+        int16_t aX = x + 12 * 6;
+        u8g2.drawPixel(aX + 1, accentY - 1);
+        u8g2.drawPixel(aX + 3, accentY - 1);
+      }
+    } else if (currentMode == MODE_DUMPLING) {
+      int16_t iX = x + 5 * 6;
+      u8g2.drawLine(iX + 1, accentY, iX + 3, accentY - 2);
+    }
+  } else {
+    u8g2.drawUTF8(x, y, name);
+  }
 }
 
 void drawScreen() {
@@ -652,7 +674,7 @@ void drawScreen() {
 void drawReadyScreen() {
   // Nazov rezimu (vyssi Unifont font kvoli diakritike - preto y o kusok
   // nizsie ako povodnych 10 px, aby sa cely zmestil od horneho okraja)
-  drawModeNameCentered(10);
+  drawModeNameCentered(14, false);
 
   if (millis() < savedMsgUntil) {
     const char* msg = "ULOZENE!";
@@ -673,7 +695,7 @@ void drawRunningScreen() {
   bool hasName = (currentMode != MODE_NONE);
 
   if (hasName) {
-    drawModeNameCentered(10);
+    drawModeNameCentered(10, true);
   }
 
   // Poloha digitalneho casu: font zvacseny z logisoso24 na logisoso26
@@ -731,7 +753,7 @@ void drawRunningScreen() {
 
 void drawAlarmScreen() {
   // Nazov rezimu (vyssi Unifont font kvoli diakritike)
-  drawModeNameCentered(10);
+  drawModeNameCentered(14, false);
 
   if ((millis() / 300) % 2 == 0) {
     u8g2.setFont(u8g2_font_logisoso24_tn);
