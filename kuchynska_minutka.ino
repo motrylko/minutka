@@ -996,13 +996,14 @@ void drawSteamAnimation(int16_t cx, int16_t baseY, bool isPizza) {
     u8g2.drawLine(backX + 6, topY, tipX, tipY);
     u8g2.drawLine(backX + 6, topBotY, tipX, tipY);
 
-    // Vnutorna cierna krivka oddeluje biely zakriveny okrajok od syra.
+    // Cierna deliaca ciara oddeluje hornu plochu od 3D bočnej vrstvy.
     u8g2.setDrawColor(0);
     for (int16_t y = topY; y <= topBotY; y++) {
       int16_t distanceFromMiddle = abs(y - crustMidY);
       int16_t outerX = backX + (distanceFromMiddle * 6) / 13;
-      u8g2.drawHLine(outerX + 5, y, 2);
+      u8g2.drawHLine(outerX + 5, y, 3);
     }
+    u8g2.drawLine(backX + 6, topBotY, tipX, tipY);
     u8g2.setDrawColor(1);
 
     const int8_t dx[6] = { -12, -3, 7, -8, 3, 12 };
