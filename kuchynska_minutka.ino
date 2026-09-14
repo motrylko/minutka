@@ -636,7 +636,7 @@ void drawModeNameCentered(int16_t y, bool compact) {
   if (compact) {
     u8g2.drawStr(x, y, name);
 
-    int16_t accentY = y - 1;
+    int16_t accentY = y - 8;
     if (currentMode == MODE_EGG_SOFT || currentMode == MODE_EGG_HARD) {
       int16_t iX = x + 3 * 6;
       int16_t cX = x + 4 * 6;
