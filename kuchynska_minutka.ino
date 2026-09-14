@@ -247,6 +247,7 @@ unsigned long lastSecondTick = 0;
 
 TimerState state = STATE_READY;
 bool isDisplaySleeping = false;
+bool ignoreSleepRelease = false;
 
 unsigned long alarmStartMillis = 0;
 unsigned long lastAlarmToggle = 0;
@@ -309,7 +310,11 @@ void loop() {
 
   // --- displej spi (ale MCU stale bezi a pocita) ---
   if (isDisplaySleeping) {
-    if (anyPressed) wakeDisplay();
+    if (anyPressed) {
+      bool wokeBySleepButton = bSleep.fell();
+      wakeDisplay();
+      if (wokeBySleepButton) ignoreSleepRelease = true;
+    }
     updateTimer();
     if (state == STATE_ALARM) {
       wakeDisplay();
@@ -485,6 +490,10 @@ void handleModeButton() {
 // =========================================================
 void handleSleepButton() {
   if (bSleep.rose()) {
+    if (ignoreSleepRelease) {
+      ignoreSleepRelease = false;
+      return;
+    }
     if (state == STATE_READY) {
       enterDeepSleep(); // ozajstny power-down, nic sa nepocita
     } else {
@@ -520,6 +529,7 @@ void enterDeepSleep() {
   detachInterrupt(digitalPinToInterrupt(BTN_SLEEP));
 
   wakeDisplay();
+  ignoreSleepRelease = true;
   bSleep.update(); // aby sa budiace stlacenie nezapocitalo znova
 }
 
