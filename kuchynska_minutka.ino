@@ -960,14 +960,25 @@ void drawSteamAnimation(int16_t cx, int16_t baseY, bool isPizza) {
     // ikonka aj pri malom rozlíšení.
     const int16_t backX = cx - 22;
     const int16_t topY  = baseY - 27;
+    const int16_t topBotY = baseY - 3;
     const int16_t botY  = baseY;
     const int16_t tipX  = cx + 22;
     const int16_t tipY  = baseY - 12;
     const int16_t crustMidY = topY + 13;
 
-    // Vyplnenie trojuholníka scanline metódou. drawTriangle()
+    // Bočná vrstva pod spodnou hranou dáva plátku tretí rozmer.
+    for (int16_t x = backX + 6; x <= tipX; x++) {
+      int16_t edgeY = topBotY - (int16_t)((float)(x - (backX + 6)) * (topBotY - tipY) / (float)(tipX - backX - 6));
+      u8g2.drawVLine(x, edgeY, baseY - edgeY + 1);
+    }
+    u8g2.drawLine(backX + 6, botY, tipX, tipY + 3);
+
+    // Zaobleny biely zadny okrajok, podobny hrubej kor ke na referencii.
+    u8g2.drawFilledEllipse(backX + 6, crustMidY, 6, 13, U8G2_DRAW_ALL);
+
+    // Vyplnenie hornej plochy trojuholnika scanline metodou. drawTriangle()
     // samotné telo iba obkreslí, preto ho tu vypĺňame riadok po riadku.
-    for (int16_t y = topY; y <= botY; y++) {
+    for (int16_t y = topY; y <= topBotY; y++) {
       int16_t distanceFromMiddle = abs(y - crustMidY);
       int16_t leftX = backX + (distanceFromMiddle * 6) / 13;
       int16_t rightX;
@@ -976,18 +987,18 @@ void drawSteamAnimation(int16_t cx, int16_t baseY, bool isPizza) {
       if (y <= tipY) {
         rightX = backX + 6 + (int16_t)((float)(y - topY) * (tipX - backX - 6) / (float)(tipY - topY));
       } else {
-        rightX = backX + 6 + (int16_t)((float)(botY - y) * (tipX - backX - 6) / (float)(botY - tipY));
+        rightX = backX + 6 + (int16_t)((float)(topBotY - y) * (tipX - backX - 6) / (float)(topBotY - tipY));
       }
       u8g2.drawHLine(leftX, y, rightX - leftX + 1);
     }
 
     // Obrys hornej a spodnej hrany plátku.
     u8g2.drawLine(backX + 6, topY, tipX, tipY);
-    u8g2.drawLine(backX + 6, botY, tipX, tipY);
+    u8g2.drawLine(backX + 6, topBotY, tipX, tipY);
 
     // Vnutorna cierna krivka oddeluje biely zakriveny okrajok od syra.
     u8g2.setDrawColor(0);
-    for (int16_t y = topY; y <= botY; y++) {
+    for (int16_t y = topY; y <= topBotY; y++) {
       int16_t distanceFromMiddle = abs(y - crustMidY);
       int16_t outerX = backX + (distanceFromMiddle * 6) / 13;
       u8g2.drawHLine(outerX + 5, y, 2);
