@@ -788,30 +788,37 @@ void drawScreen() {
 
 void drawWelcomeScreen() {
   unsigned long elapsed = millis() - welcomeStartMillis;
-  const unsigned long phaseMs = 2000UL;
 
   if (elapsed >= 4000UL) {
     welcomeActive = false;
     return;
   }
 
-  if ((elapsed / phaseMs) % 2 == 0) {
-    char message[32];
-    strcpy_P(message, PSTR("Ahoj, čo dnes uvaríme?"));
+  if (elapsed < 2000UL) {
     u8g2.setFont(MODE_FONT);
-    int16_t width = u8g2.getUTF8Width(message);
-    u8g2.drawUTF8((128 - width) / 2, 31, message);
+
+    const char* line1 = "Ahoj,";
+    const char* line2 = "čo dnes uvaríme?";
+
+    int16_t w1 = u8g2.getUTF8Width(line1);
+    int16_t w2 = u8g2.getUTF8Width(line2);
+    int16_t x1 = (128 - w1) / 2;
+    int16_t x2 = (128 - w2) / 2;
+
+    u8g2.drawUTF8(x1, 20, line1);
+    u8g2.drawUTF8(x2, 38, line2);
     return;
   }
 
-  // Smajlik sa zmrkne iba raz a nič iné sa neanimuje.
-  bool wink = (elapsed >= 2000UL + 1000UL) ? false : true;
+  // iba jedno pohnutie oka, bez opakovania
   u8g2.drawCircle(64, 32, 20);
   u8g2.drawDisc(56, 27, 2);
   u8g2.drawDisc(72, 27, 2);
-  if (wink) {
-    u8g2.drawHLine(69, 27, 7);
+
+  if (elapsed < 2400UL) {
+    u8g2.drawLine(68, 27, 75, 27);
   }
+
   u8g2.drawLine(54, 40, 58, 43);
   u8g2.drawLine(58, 43, 64, 45);
   u8g2.drawLine(64, 45, 70, 43);
