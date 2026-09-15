@@ -624,12 +624,6 @@ void formatTime(unsigned long totalSeconds, char* buf) {
   sprintf(buf, "%02u:%02u", m, s);
 }
 
-void drawTimeFixedCentered(const char* timeText, int16_t y) {
-  const int16_t totalWidth = u8g2.getStrWidth("88:88");
-  const int16_t startX = (128 - totalWidth) / 2;
-  u8g2.drawStr(startX, y, timeText);
-}
-
 // Vykresli nazov aktualneho rezimu vycentrovany podla skutocnej dlzky
 // textu (UTF-8, kvoli diakritike). Ak je aktivny ziadny-mod, nic nekresli.
 void drawModeNameCentered(int16_t y, bool compact) {
@@ -668,7 +662,6 @@ void drawModeNameCentered(int16_t y, bool compact) {
 
 void drawScreen() {
   u8g2.clearBuffer();
-  u8g2.setDrawColor(1);
 
   if (state == STATE_ALARM) {
     drawAlarmScreen();
@@ -696,14 +689,9 @@ void drawReadyScreen() {
 
   char buf[6];
   formatTime(remainingSeconds, buf);
-  if (currentMode == MODE_NONE) {
-    const char* prompt = "Nastav čas";
-    u8g2.setFont(MODE_FONT);
-    int promptWidth = u8g2.getUTF8Width(prompt);
-    u8g2.drawUTF8((128 - promptWidth) / 2, 16, prompt);
-  }
   u8g2.setFont(u8g2_font_logisoso32_tn);
-  drawTimeFixedCentered(buf, 52);
+  int tw = u8g2.getStrWidth(buf);
+  u8g2.drawStr((128 - tw) / 2, 50, buf);
 }
 
 void drawRunningScreen() {
@@ -723,7 +711,8 @@ void drawRunningScreen() {
   char buf[6];
   formatTime(remainingSeconds, buf);
   u8g2.setFont(hasName ? u8g2_font_logisoso24_tn : u8g2_font_logisoso26_tn);
-  drawTimeFixedCentered(buf, timeY);
+  int tw = u8g2.getStrWidth(buf);
+  u8g2.drawStr((128 - tw) / 2, timeY, buf);
 
   if (state == STATE_PAUSED) {
     if ((millis() / 400) % 2 == 0) {
@@ -778,20 +767,10 @@ void drawAlarmScreen() {
     u8g2.drawStr((128 - tw) / 2, 42, msg);
   }
 
+  u8g2.setFont(u8g2_font_7x14B_tr);
   const char* done = "HOTOVO!";
-  if (currentMode == MODE_NONE) {
-    done = "ČAS UPLYNUL";
-  } else if (currentMode == MODE_EGG_SOFT || currentMode == MODE_EGG_HARD) {
-    done = "Vajíčka hotové";
-  } else if (currentMode == MODE_DUMPLING) {
-    done = "Knedlík hotový";
-  } else if (currentMode == MODE_PIZZA) {
-    done = "Pizza hotová";
-  }
-
-  u8g2.setFont(MODE_FONT);
-  int dw = u8g2.getUTF8Width(done);
-  u8g2.drawUTF8((128 - dw) / 2, 62, done);
+  int dw = u8g2.getStrWidth(done);
+  u8g2.drawStr((128 - dw) / 2, 60, done);
 }
 
 // =========================================================
@@ -1022,7 +1001,7 @@ void drawSteamAnimation(int16_t cx, int16_t baseY, bool isPizza) {
     for (int16_t y = topY; y <= topBotY; y++) {
       int16_t distanceFromMiddle = abs(y - crustMidY);
       int16_t outerX = backX + (distanceFromMiddle * 6) / 13;
-      u8g2.drawHLine(outerX + 3, y, 2);
+      u8g2.drawHLine(outerX + 5, y, 2);
     }
     u8g2.drawLine(backX + 6, topBotY, tipX, tipY);
     u8g2.setDrawColor(1);
