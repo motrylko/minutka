@@ -791,7 +791,6 @@ void drawWelcomeScreen() {
   unsigned long elapsed = millis() - welcomeStartMillis;
   if (elapsed >= 2000UL) {
     welcomeActive = false;
-    drawRunningOrReadyScreen();
     return;
   }
 
@@ -805,27 +804,17 @@ void drawWelcomeScreen() {
   }
 
   bool wink = ((elapsed - 1000UL) / 180UL) % 2 == 0;
-  u8g2.drawCircle(64, 32, 20, U8G2_DRAW_ALL);
-  u8g2.drawDisc(56, 27, 2, U8G2_DRAW_ALL);
+  u8g2.drawCircle(64, 32, 20);
+  u8g2.drawDisc(56, 27, 2);
   if (wink) {
     u8g2.drawHLine(69, 27, 7);
   } else {
-    u8g2.drawDisc(72, 27, 2, U8G2_DRAW_ALL);
+    u8g2.drawDisc(72, 27, 2);
   }
   u8g2.drawLine(54, 40, 58, 43);
   u8g2.drawLine(58, 43, 64, 45);
   u8g2.drawLine(64, 45, 70, 43);
   u8g2.drawLine(70, 43, 74, 40);
-}
-
-void drawRunningOrReadyScreen() {
-  if (state == STATE_ALARM) {
-    drawAlarmScreen();
-  } else if (state == STATE_RUNNING || state == STATE_PAUSED) {
-    drawRunningScreen();
-  } else {
-    drawReadyScreen();
-  }
 }
 
 void drawReadyScreen() {
