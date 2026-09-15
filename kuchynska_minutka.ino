@@ -788,21 +788,30 @@ void drawScreen() {
 
 void drawWelcomeScreen() {
   unsigned long elapsed = millis() - welcomeStartMillis;
-  if (elapsed >= 2000UL) {
+  const unsigned long phaseMs = 2000UL;
+
+  if (elapsed >= 4000UL) {
     welcomeActive = false;
     return;
   }
 
-  if (elapsed < 1000UL) {
-    char message[32];
-    strcpy_P(message, PSTR("Ahoj, čo dnes uvaríme?"));
+  if ((elapsed / phaseMs) % 2 == 0) {
     u8g2.setFont(MODE_FONT);
-    int16_t width = u8g2.getUTF8Width(message);
-    u8g2.drawUTF8((128 - width) / 2, 31, message);
+
+    const char* line1 = "Ahoj,";
+    const char* line2 = "čo dnes uvaríme?";
+
+    int16_t w1 = u8g2.getUTF8Width(line1);
+    int16_t w2 = u8g2.getUTF8Width(line2);
+    int16_t x1 = (128 - w1) / 2;
+    int16_t x2 = (128 - w2) / 2;
+
+    u8g2.drawUTF8(x1, 26, line1);
+    u8g2.drawUTF8(x2, 42, line2);
     return;
   }
 
-  bool wink = ((elapsed - 1000UL) / 180UL) % 2 == 0;
+  bool wink = ((elapsed / 180UL) % 2 == 0);
   u8g2.drawCircle(64, 32, 20);
   u8g2.drawDisc(56, 27, 2);
   if (wink) {
