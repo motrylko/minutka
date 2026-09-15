@@ -771,7 +771,7 @@ void drawRunningScreen() {
   // prepocitane tak, aby v ZIADNOM-REZIME zostal vrch cislic 1px od
   // vrchneho okraja a spodok cislic 3px od zaciatku viecka presypacich
   // hodin (ktore zacina na animTopY + 2).
-  int16_t timeY = hasName ? 36 : 30;
+  int16_t timeY = hasName ? 36 : 33;
 
   char buf[6];
   formatTime(remainingSeconds, buf);
@@ -783,9 +783,8 @@ void drawRunningScreen() {
       u8g2.setFont(u8g2_font_5x7_tf);
       const char* pauseMsg = "PAUZA";
       int pw = u8g2.getStrWidth(pauseMsg);
-      // Tesne pod casom, aby to nekolidovalo s (mozno cez celu sirku)
-      // centrovanym nazvom rezimu navrchu.
-      u8g2.drawStr((128 - pw) / 2, timeY + 10, pauseMsg);
+      u8g2.drawStr(0, 63, pauseMsg);
+      u8g2.drawStr(128 - pw, 63, pauseMsg);
     }
   }
 
@@ -823,7 +822,7 @@ void drawAlarmScreen() {
   drawModeNameCentered(14, false);
 
   if ((millis() / 300) % 2 == 0) {
-    u8g2.setFont(u8g2_font_logisoso24_tn);
+    u8g2.setFont(currentMode == MODE_NONE ? u8g2_font_logisoso32_tn : u8g2_font_logisoso24_tn);
     const char* msg = "00:00";
     int tw = u8g2.getStrWidth(msg);
     // Posunute o kusok nizsie (bolo 40), aby sa nedotykalo vyssieho
