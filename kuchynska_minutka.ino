@@ -111,7 +111,7 @@
 
 // ---------- Displej ----------
 // Ak nefunguje, skus U8G2_SSD1309_128X64_NONAME2_F_HW_I2C
-U8G2_SSD1309_128X64_NONAME0_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
+U8G2_SSD1309_128X64_NONAME0_1_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
 // ---------- Tlacidla (debounce) ----------
 Bounce bStartStop = Bounce();
@@ -661,17 +661,16 @@ void drawModeNameCentered(int16_t y, bool compact) {
 }
 
 void drawScreen() {
-  u8g2.clearBuffer();
-
-  if (state == STATE_ALARM) {
-    drawAlarmScreen();
-  } else if (state == STATE_RUNNING || state == STATE_PAUSED) {
-    drawRunningScreen();
-  } else {
-    drawReadyScreen();
-  }
-
-  u8g2.sendBuffer();
+  u8g2.firstPage();
+  do {
+    if (state == STATE_ALARM) {
+      drawAlarmScreen();
+    } else if (state == STATE_RUNNING || state == STATE_PAUSED) {
+      drawRunningScreen();
+    } else {
+      drawReadyScreen();
+    }
+  } while (u8g2.nextPage());
 }
 
 void drawReadyScreen() {
