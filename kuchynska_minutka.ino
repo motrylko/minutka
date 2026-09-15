@@ -231,6 +231,7 @@ const unsigned long ALARM_AUTO_OFF_MS = 60000UL;  // alarm pipa 1 minutu
 const unsigned long ALARM_PERIOD_MS   = 200;       // preryvavy ton - perioda 200 ms (aktivny buzzer)
 const unsigned long BUTTON_BEEP_MS    = 200;
 const unsigned long READY_SLEEP_MS    = 30000UL;
+const unsigned long WAKE_IGNORE_MS    = 10000UL;
 const unsigned long SAVE_MSG_MS       = 1200;
 const unsigned long ANIM_STEP_MS      = 150;
 
@@ -252,6 +253,8 @@ TimerState state = STATE_READY;
 bool isDisplaySleeping = false;
 bool ignoreSleepRelease = false;
 bool waitingForSleepRelease = false;
+volatile bool sleepWakeRequested = false;
+unsigned long ignoreSleepUntil = 0;
 
 unsigned long alarmStartMillis = 0;
 unsigned long lastAlarmToggle = 0;
@@ -317,6 +320,15 @@ void loop() {
   bool modePressed = bMode.fell();
   bool sleepPressed = bSleep.fell();
   bool anyPressed = startPressed || minutesPressed || modePressed || sleepPressed;
+  if (sleepWakeRequested) {
+    sleepWakeRequested = false;
+    wakeDisplay();
+    isDisplaySleeping = false;
+    waitingForSleepRelease = true;
+    lastActivityMillis = millis();
+    ignoreSleepUntil = millis() + WAKE_IGNORE_MS;
+    bSleep.update();
+  }
   if (startPressed) buttonBeep();
   if (minutesPressed) buttonBeep();
   if (modePressed) buttonBeep();
@@ -326,6 +338,8 @@ void loop() {
     if (sleepPressed) {
       wakeDisplay();
       waitingForSleepRelease = true;
+      lastActivityMillis = millis();
+      ignoreSleepUntil = millis() + WAKE_IGNORE_MS;
     }
     updateTimer();
     if (state == STATE_ALARM) {
@@ -505,6 +519,9 @@ void handleModeButton() {
 //  TLACIDLO SLEEP
 // =========================================================
 void handleSleepButton() {
+  if (millis() < ignoreSleepUntil) {
+    return;
+  }
   if (bSleep.rose()) {
     if (waitingForSleepRelease) {
       waitingForSleepRelease = false;
@@ -531,7 +548,7 @@ void wakeDisplay() {
 }
 
 void wakeISR() {
-  // prazdne - staci ze prerusenie zobudi CPU zo sleep_cpu()
+  sleepWakeRequested = true;
 }
 
 void buttonBeep() {
@@ -559,6 +576,8 @@ void enterDeepSleep() {
 
   wakeDisplay();
   waitingForSleepRelease = true;
+  lastActivityMillis = millis();
+  ignoreSleepUntil = millis() + WAKE_IGNORE_MS;
   bSleep.update(); // aby sa budiace stlacenie nezapocitalo znova
 }
 
