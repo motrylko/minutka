@@ -690,10 +690,9 @@ void drawReadyScreen() {
   char buf[6];
   formatTime(remainingSeconds, buf);
   if (currentMode == MODE_NONE) {
-    const char* prompt = "Nastav čas";
     u8g2.setFont(MODE_FONT);
-    int16_t promptWidth = u8g2.getUTF8Width(prompt);
-    u8g2.drawUTF8((128 - promptWidth) / 2, 16, prompt);
+    u8g2.setCursor(24, 16);
+    u8g2.print(F("Nastav čas"));
   }
   u8g2.setFont(u8g2_font_logisoso32_tn);
   int tw = u8g2.getStrWidth(buf);
