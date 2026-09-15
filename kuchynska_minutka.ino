@@ -236,7 +236,7 @@ const unsigned long WAKE_IGNORE_MS    = 10000UL;
 const unsigned long DIM_DELAY_MS      = 10000UL;
 const unsigned long DIM_THRESHOLD_SECONDS = 600UL;
 const uint8_t DISPLAY_CONTRAST        = 255;
-const uint8_t DIMMED_CONTRAST         = 63;
+const uint8_t DIMMED_CONTRAST         = 50;
 const unsigned long SAVE_MSG_MS       = 1200;
 const unsigned long ANIM_STEP_MS      = 150;
 
@@ -847,8 +847,8 @@ void drawRunningScreen() {
       // verziach, len sa cele o kusok posunuli nizsie kvoli vacsiemu
       // fontu casu, a teraz vychadza presne na spodny okraj displeja.
       drawHourglassAnimation(animCx, 42, 61);
-      drawSteamPotAnimation(38, 55, 0, false);
-      drawSteamPotAnimation(90, 55, 9, true);
+      drawSteamPotAnimation(38, 61, 0, false);
+      drawSteamPotAnimation(90, 61, 9, true);
       break;
     case MODE_EGG_SOFT:
     case MODE_EGG_HARD:
@@ -946,6 +946,16 @@ void drawSteamPotAnimation(int16_t cx, int16_t baseY, uint8_t phaseOffset, bool 
   u8g2.drawHLine(cx + halfW + 1, handleY, 3);
   u8g2.drawCircle(cx - halfW - 4, handleY, 2, U8G2_DRAW_ALL);
   u8g2.drawCircle(cx + halfW + 4, handleY, 2, U8G2_DRAW_ALL);
+
+  int16_t waterY = potTopY + 4;
+  for (int16_t x = cx - halfW + 1; x <= cx + halfW - 1; x += 3) {
+    int8_t wave = (((x / 3) + animFrame + phaseOffset) % 2 == 0) ? 0 : 1;
+    u8g2.drawPixel(x, waterY + wave);
+  }
+  u8g2.drawCircle(cx - 4, waterY + 5, 1, U8G2_DRAW_ALL);
+  u8g2.drawCircle(cx + 3, waterY + 8, 1, U8G2_DRAW_ALL);
+  u8g2.drawPixel(cx + 1, waterY + 11);
+
   u8g2.drawLine(innerX, lidY, outerX, lidY - lidLift - 2);
   u8g2.drawLine(innerX + (mirror ? -1 : 1), lidY + 1,
                 outerX + (mirror ? -1 : 1), lidY - lidLift - 1);
