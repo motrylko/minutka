@@ -227,8 +227,10 @@ const float    MINUTES_HOLD_RATE_SEC_PER_SEC = 3.0;
 const uint8_t  MAX_MINUTES          = 99;
 const uint8_t  MIN_MINUTES          = 1;
 const unsigned long MAX_SECONDS = (unsigned long)MAX_MINUTES * 60UL;
-const unsigned long ALARM_AUTO_OFF_MS = 180000UL; // alarm sa sam vypne po 3 min
+const unsigned long ALARM_AUTO_OFF_MS = 60000UL;  // alarm pipa 1 minutu
 const unsigned long ALARM_PERIOD_MS   = 200;       // preryvavy ton - perioda 200 ms (aktivny buzzer)
+const unsigned long BUTTON_BEEP_MS    = 100;
+const unsigned long READY_SLEEP_MS    = 30000UL;
 const unsigned long SAVE_MSG_MS       = 1200;
 const unsigned long ANIM_STEP_MS      = 150;
 
@@ -255,6 +257,7 @@ unsigned long lastAlarmToggle = 0;
 bool alarmToneOn = false;
 
 unsigned long savedMsgUntil = 0;
+unsigned long lastActivityMillis = 0;
 
 uint8_t animFrame = 0;
 unsigned long lastAnimStep = 0;
@@ -296,6 +299,7 @@ void setup() {
   // ulozeny preset pre tento rezim sa ignoruje (loadSettings() vzdy
   // nastavi MODE_NONE, takze v praxi tu vzdy vyjde 0).
   remainingSeconds = presetSecondsFor(currentMode);
+  lastActivityMillis = millis();
 }
 
 // =========================================================
@@ -308,13 +312,15 @@ void loop() {
   bSleep.update();
 
   bool anyPressed = bStartStop.fell() || bMinutes.fell() || bMode.fell() || bSleep.fell();
+  if (bStartStop.fell()) buttonBeep();
+  if (bMinutes.fell()) buttonBeep();
+  if (bMode.fell()) buttonBeep();
 
   // --- displej spi (ale MCU stale bezi a pocita) ---
   if (isDisplaySleeping) {
-    if (anyPressed) {
-      bool wokeBySleepButton = bSleep.fell();
+    if (bSleep.fell()) {
       wakeDisplay();
-      if (wokeBySleepButton) ignoreSleepRelease = true;
+      ignoreSleepRelease = true;
     }
     updateTimer();
     if (state == STATE_ALARM) {
@@ -345,6 +351,7 @@ void loop() {
   updateTimer();
   updateAnimation();
   drawScreen();
+  handleAutomaticSleep();
 }
 
 // =========================================================
@@ -354,6 +361,7 @@ void handleStartStopButton() {
   if (bStartStop.fell()) {
     startPressStart = millis();
     startStopLongActionDone = false;
+    lastActivityMillis = millis();
   }
 
   // Kym je tlacidlo drzane, priebezne sleduj ci uz ubehli 3 sekundy.
@@ -409,6 +417,7 @@ void handleMinutesButton() {
   if (bMinutes.fell()) {
     minutesPressStart = millis();
     minutesRepeating = false;
+    lastActivityMillis = millis();
   }
 
   if (bMinutes.read() == LOW) {
@@ -466,6 +475,7 @@ unsigned long presetSecondsFor(uint8_t mode) {
 void handleModeButton() {
   if (bMode.fell()) {
     modePressStart = millis();
+    lastActivityMillis = millis();
   }
   if (bMode.rose()) {
     unsigned long heldFor = millis() - modePressStart;
@@ -491,6 +501,7 @@ void handleModeButton() {
 // =========================================================
 void handleSleepButton() {
   if (bSleep.rose()) {
+    lastActivityMillis = millis();
     if (ignoreSleepRelease) {
       ignoreSleepRelease = false;
       return;
@@ -511,6 +522,12 @@ void wakeDisplay() {
 
 void wakeISR() {
   // prazdne - staci ze prerusenie zobudi CPU zo sleep_cpu()
+}
+
+void buttonBeep() {
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(BUTTON_BEEP_MS);
+  digitalWrite(BUZZER_PIN, LOW);
 }
 
 void enterDeepSleep() {
@@ -564,6 +581,7 @@ void handleAlarmSound() {
 
   if (now - alarmStartMillis >= ALARM_AUTO_OFF_MS) {
     stopAlarm();
+    enterDeepSleep();
     return;
   }
 
@@ -571,6 +589,13 @@ void handleAlarmSound() {
     lastAlarmToggle = now;
     alarmToneOn = !alarmToneOn;
     digitalWrite(BUZZER_PIN, alarmToneOn ? HIGH : LOW);
+  }
+}
+
+void handleAutomaticSleep() {
+  if (state == STATE_READY && remainingSeconds == 0 &&
+      millis() - lastActivityMillis >= READY_SLEEP_MS) {
+    enterDeepSleep();
   }
 }
 
