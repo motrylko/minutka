@@ -788,41 +788,42 @@ void drawScreen() {
 
 void drawWelcomeScreen() {
   unsigned long elapsed = millis() - welcomeStartMillis;
-  const unsigned long phaseMs = 2000UL;
 
   if (elapsed >= 4000UL) {
     welcomeActive = false;
     return;
   }
 
-  if ((elapsed / phaseMs) % 2 == 0) {
-    u8g2.setFont(MODE_FONT);
+  if (elapsed < 2000UL) {
+    u8g2.setFont(u8g2_font_7x14B_tr);
 
     const char* line1 = "Ahoj,";
-    const char* line2 = "čo dnes uvaríme?";
+    const char* line2 = "co dnes uvarime?";
 
-    int16_t w1 = u8g2.getUTF8Width(line1);
-    int16_t w2 = u8g2.getUTF8Width(line2);
+    int16_t w1 = u8g2.getStrWidth(line1);
+    int16_t w2 = u8g2.getStrWidth(line2);
     int16_t x1 = (128 - w1) / 2;
     int16_t x2 = (128 - w2) / 2;
 
-    u8g2.drawUTF8(x1, 26, line1);
-    u8g2.drawUTF8(x2, 42, line2);
+    u8g2.drawStr(x1, 23, line1);
+    u8g2.drawStr(x2, 41, line2);
     return;
   }
 
-  bool wink = ((elapsed / 180UL) % 2 == 0);
-  u8g2.drawCircle(64, 32, 20);
-  u8g2.drawDisc(56, 27, 2);
-  if (wink) {
-    u8g2.drawHLine(69, 27, 7);
+  // Smajlik sa zmrkne iba raz.
+  u8g2.drawCircle(64, 32, 18);
+  u8g2.drawDisc(57, 27, 2);
+  u8g2.drawDisc(71, 27, 2);
+  if (elapsed < 2600UL) {
+    u8g2.drawHLine(58, 38, 12);
   } else {
-    u8g2.drawDisc(72, 27, 2);
+    u8g2.drawLine(58, 38, 64, 42);
+    u8g2.drawLine(64, 42, 70, 38);
   }
-  u8g2.drawLine(54, 40, 58, 43);
-  u8g2.drawLine(58, 43, 64, 45);
-  u8g2.drawLine(64, 45, 70, 43);
-  u8g2.drawLine(70, 43, 74, 40);
+  u8g2.drawLine(54, 42, 58, 46);
+  u8g2.drawLine(58, 46, 64, 48);
+  u8g2.drawLine(64, 48, 70, 46);
+  u8g2.drawLine(70, 46, 74, 42);
 }
 
 void drawReadyScreen() {
