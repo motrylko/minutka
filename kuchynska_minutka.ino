@@ -236,7 +236,7 @@ const unsigned long WAKE_IGNORE_MS    = 10000UL;
 const unsigned long DIM_DELAY_MS      = 10000UL;
 const unsigned long DIM_THRESHOLD_SECONDS = 600UL;
 const uint8_t DISPLAY_CONTRAST        = 255;
-const uint8_t DIMMED_CONTRAST         = 179;
+const uint8_t DIMMED_CONTRAST         = 128;
 const unsigned long SAVE_MSG_MS       = 1200;
 const unsigned long ANIM_STEP_MS      = 150;
 
@@ -270,6 +270,7 @@ unsigned long lastActivityMillis = 0;
 unsigned long pauseStartMillis = 0;
 unsigned long runningStartMillis = 0;
 bool displayDimmed = false;
+unsigned long beepUntil = 0;
 
 uint8_t animFrame = 0;
 unsigned long lastAnimStep = 0;
@@ -340,6 +341,7 @@ void loop() {
   if (startPressed) buttonBeep();
   if (minutesPressed) buttonBeep();
   if (modePressed) buttonBeep();
+  updateButtonBeep();
 
   // --- displej spi (ale MCU stale bezi a pocita) ---
   if (isDisplaySleeping) {
@@ -584,8 +586,14 @@ void wakeISR() {
 
 void buttonBeep() {
   digitalWrite(BUZZER_PIN, HIGH);
-  delay(BUTTON_BEEP_MS);
-  digitalWrite(BUZZER_PIN, LOW);
+  beepUntil = millis() + BUTTON_BEEP_MS;
+}
+
+void updateButtonBeep() {
+  if (beepUntil != 0 && millis() >= beepUntil) {
+    digitalWrite(BUZZER_PIN, LOW);
+    beepUntil = 0;
+  }
 }
 
 void enterDeepSleep() {
