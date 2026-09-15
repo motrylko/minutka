@@ -231,7 +231,12 @@ const unsigned long ALARM_AUTO_OFF_MS = 60000UL;  // alarm pipa 1 minutu
 const unsigned long ALARM_PERIOD_MS   = 200;       // preryvavy ton - perioda 200 ms (aktivny buzzer)
 const unsigned long BUTTON_BEEP_MS    = 150;
 const unsigned long READY_SLEEP_MS    = 30000UL;
+const unsigned long PAUSE_SLEEP_MS    = 600000UL;
 const unsigned long WAKE_IGNORE_MS    = 10000UL;
+const unsigned long DIM_DELAY_MS      = 10000UL;
+const unsigned long DIM_THRESHOLD_SECONDS = 600UL;
+const uint8_t DISPLAY_CONTRAST        = 255;
+const uint8_t DIMMED_CONTRAST         = 179;
 const unsigned long SAVE_MSG_MS       = 1200;
 const unsigned long ANIM_STEP_MS      = 150;
 
@@ -262,6 +267,9 @@ bool alarmToneOn = false;
 
 unsigned long savedMsgUntil = 0;
 unsigned long lastActivityMillis = 0;
+unsigned long pauseStartMillis = 0;
+unsigned long runningStartMillis = 0;
+bool displayDimmed = false;
 
 uint8_t animFrame = 0;
 unsigned long lastAnimStep = 0;
@@ -342,6 +350,7 @@ void loop() {
       ignoreSleepUntil = millis() + WAKE_IGNORE_MS;
     }
     updateTimer();
+    handleAutomaticDimming();
     if (state == STATE_ALARM) {
       wakeDisplay();
       handleAlarmSound();
@@ -369,6 +378,7 @@ void loop() {
 
   updateTimer();
   updateAnimation();
+  handleAutomaticDimming();
   drawScreen();
   handleAutomaticSleep();
 }
@@ -401,15 +411,22 @@ void handleStartStopButton() {
           if (remainingSeconds > 0) {
             totalSecondsAtStart = remainingSeconds;
             lastSecondTick = millis();
+            runningStartMillis = millis();
+            pauseStartMillis = 0;
+            restoreDisplayBrightness();
             animFrame = 0;
             state = STATE_RUNNING;
           }
           break;
         case STATE_RUNNING:
           state = STATE_PAUSED;
+          pauseStartMillis = millis();
+          restoreDisplayBrightness();
           break;
         case STATE_PAUSED:
           lastSecondTick = millis();
+          pauseStartMillis = 0;
+          runningStartMillis = millis();
           state = STATE_RUNNING;
           break;
         default:
@@ -544,7 +561,21 @@ void handleSleepButton() {
 
 void wakeDisplay() {
   u8g2.setPowerSave(0);
+  restoreDisplayBrightness();
   isDisplaySleeping = false;
+}
+
+void restoreDisplayBrightness() {
+  u8g2.setContrast(DISPLAY_CONTRAST);
+  displayDimmed = false;
+}
+
+void handleAutomaticDimming() {
+  if (state == STATE_RUNNING && totalSecondsAtStart > DIM_THRESHOLD_SECONDS &&
+      !displayDimmed && millis() - runningStartMillis >= DIM_DELAY_MS) {
+    u8g2.setContrast(DIMMED_CONTRAST);
+    displayDimmed = true;
+  }
 }
 
 void wakeISR() {
@@ -558,6 +589,7 @@ void buttonBeep() {
 }
 
 void enterDeepSleep() {
+  restoreDisplayBrightness();
   u8g2.setPowerSave(1);
   isDisplaySleeping = true;
   bSleep.update();
@@ -625,6 +657,9 @@ void handleAutomaticSleep() {
   if (state == STATE_READY &&
       millis() - lastActivityMillis >= READY_SLEEP_MS) {
     enterDeepSleep();
+  } else if (state == STATE_PAUSED &&
+             millis() - pauseStartMillis >= PAUSE_SLEEP_MS) {
+    enterDeepSleep();
   }
 }
 
@@ -633,6 +668,7 @@ void stopAlarm() {
   state = STATE_READY;
   remainingSeconds = presetSecondsFor(currentMode);
   lastActivityMillis = millis();
+  restoreDisplayBrightness();
 }
 
 // =========================================================
