@@ -624,11 +624,6 @@ void formatTime(unsigned long totalSeconds, char* buf) {
   sprintf(buf, "%02u:%02u", m, s);
 }
 
-void drawTimeCentered(const char* timeText, int16_t y) {
-  int16_t timeWidth = u8g2.getStrWidth("88:88");
-  u8g2.drawStr((128 - timeWidth) / 2, y, timeText);
-}
-
 // Vykresli nazov aktualneho rezimu vycentrovany podla skutocnej dlzky
 // textu (UTF-8, kvoli diakritike). Ak je aktivny ziadny-mod, nic nekresli.
 void drawModeNameCentered(int16_t y, bool compact) {
@@ -694,14 +689,9 @@ void drawReadyScreen() {
 
   char buf[6];
   formatTime(remainingSeconds, buf);
-  if (currentMode == MODE_NONE) {
-    const char* prompt = "Nastav čas";
-    u8g2.setFont(MODE_FONT);
-    int16_t promptWidth = u8g2.getUTF8Width(prompt);
-    u8g2.drawUTF8((128 - promptWidth) / 2, 16, prompt);
-  }
   u8g2.setFont(u8g2_font_logisoso32_tn);
-  drawTimeCentered(buf, 50);
+  int tw = u8g2.getStrWidth(buf);
+  u8g2.drawStr((128 - tw) / 2, 50, buf);
 }
 
 void drawRunningScreen() {
@@ -721,7 +711,8 @@ void drawRunningScreen() {
   char buf[6];
   formatTime(remainingSeconds, buf);
   u8g2.setFont(hasName ? u8g2_font_logisoso24_tn : u8g2_font_logisoso26_tn);
-  drawTimeCentered(buf, timeY);
+  int tw = u8g2.getStrWidth(buf);
+  u8g2.drawStr((128 - tw) / 2, timeY, buf);
 
   if (state == STATE_PAUSED) {
     if ((millis() / 400) % 2 == 0) {
