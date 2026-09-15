@@ -229,7 +229,7 @@ const uint8_t  MIN_MINUTES          = 1;
 const unsigned long MAX_SECONDS = (unsigned long)MAX_MINUTES * 60UL;
 const unsigned long ALARM_AUTO_OFF_MS = 60000UL;  // alarm pipa 1 minutu
 const unsigned long ALARM_PERIOD_MS   = 200;       // preryvavy ton - perioda 200 ms (aktivny buzzer)
-const unsigned long BUTTON_BEEP_MS    = 200;
+const unsigned long BUTTON_BEEP_MS    = 150;
 const unsigned long READY_SLEEP_MS    = 30000UL;
 const unsigned long WAKE_IGNORE_MS    = 10000UL;
 const unsigned long SAVE_MSG_MS       = 1200;
@@ -611,7 +611,6 @@ void handleAlarmSound() {
 
   if (now - alarmStartMillis >= ALARM_AUTO_OFF_MS) {
     stopAlarm();
-    enterDeepSleep();
     return;
   }
 
@@ -623,7 +622,7 @@ void handleAlarmSound() {
 }
 
 void handleAutomaticSleep() {
-  if (state == STATE_READY && remainingSeconds == 0 &&
+  if (state == STATE_READY &&
       millis() - lastActivityMillis >= READY_SLEEP_MS) {
     enterDeepSleep();
   }
@@ -633,6 +632,7 @@ void stopAlarm() {
   digitalWrite(BUZZER_PIN, LOW);
   state = STATE_READY;
   remainingSeconds = presetSecondsFor(currentMode);
+  lastActivityMillis = millis();
 }
 
 // =========================================================
@@ -771,11 +771,11 @@ void drawRunningScreen() {
   // prepocitane tak, aby v ZIADNOM-REZIME zostal vrch cislic 1px od
   // vrchneho okraja a spodok cislic 3px od zaciatku viecka presypacich
   // hodin (ktore zacina na animTopY + 2).
-  int16_t timeY = hasName ? 36 : 27;
+  int16_t timeY = hasName ? 36 : 30;
 
   char buf[6];
   formatTime(remainingSeconds, buf);
-  u8g2.setFont(hasName ? u8g2_font_logisoso24_tn : u8g2_font_logisoso26_tn);
+  u8g2.setFont(hasName ? u8g2_font_logisoso24_tn : u8g2_font_logisoso32_tn);
   drawTimeCentered(buf, timeY);
 
   if (state == STATE_PAUSED) {
@@ -795,7 +795,7 @@ void drawRunningScreen() {
   // POZOR: 28 (nie povodnych 26) - kvoli vacsiemu fontu casu (logisoso26)
   // sa cislice o dalsie 2px "natiahli" nizsie, tak sa hodiny posunuli o
   // 2px nizsie, aby medzi nimi a casom ostala presne 3px medzera.
-  int16_t animTopY = hasName ? 40 : 28;
+  int16_t animTopY = hasName ? 40 : 38;
 
   switch (currentMode) {
     case MODE_NONE:
@@ -897,7 +897,7 @@ void drawHourglassAnimation(int16_t cx, int16_t topY, int16_t bottomY) {
   // presne ako sa stalo predtym (navyse pixel tesne pod cislicou "3")
   topY += 2;
 
-  const int16_t halfW = 12;          // o 15% uzsie nez predtym (bolo 14),
+  const int16_t halfW = 9;           // o 25% uzsie nez predtym,
                                       // na ziadost pouzivatela zmensit
                                       // presypacie hodiny v pomere k
                                       // zvacsenemu digitalnemu casu
