@@ -846,7 +846,7 @@ void drawRunningScreen() {
       // rovnaka (~33px, tj. tu istu ~15% redukciu) ako v predchadzajucich
       // verziach, len sa cele o kusok posunuli nizsie kvoli vacsiemu
       // fontu casu, a teraz vychadza presne na spodny okraj displeja.
-      drawHourglassAnimation(animCx, animTopY, 63);
+      drawHourglassAnimation(animCx, 42, 61);
       drawSteamPotAnimation(38, 55, 0, false);
       drawSteamPotAnimation(90, 55, 9, true);
       break;
@@ -931,7 +931,7 @@ void drawEggPotAnimation(int16_t cx, int16_t baseY) {
 }
 
 void drawSteamPotAnimation(int16_t cx, int16_t baseY, uint8_t phaseOffset, bool mirror) {
-  const int16_t potTopY = baseY - 10;
+  const int16_t potTopY = baseY - 18;
   const int16_t halfW = 8;
   uint8_t phase = (animFrame + phaseOffset) % 24;
   int16_t lidLift = (phase < 5) ? (int16_t)(5 - phase) / 2 : 0;
@@ -940,12 +940,12 @@ void drawSteamPotAnimation(int16_t cx, int16_t baseY, uint8_t phaseOffset, bool 
   int16_t innerX = mirror ? cx - halfW : cx + halfW;
   int16_t handleY = potTopY + 5;
 
-  u8g2.drawFrame(cx - halfW, potTopY + 2, halfW * 2 + 1, 8);
+  u8g2.drawFrame(cx - halfW, potTopY + 2, halfW * 2 + 1, 16);
   u8g2.drawHLine(cx - halfW - 1, baseY, halfW * 2 + 3);
-  u8g2.drawLine(cx - halfW - 1, handleY, cx - halfW - 5, handleY + 1);
-  u8g2.drawLine(cx + halfW + 1, handleY, cx + halfW + 5, handleY + 1);
-  u8g2.drawCircle(cx - halfW - 5, handleY + 1, 2, U8G2_DRAW_ALL);
-  u8g2.drawCircle(cx + halfW + 5, handleY + 1, 2, U8G2_DRAW_ALL);
+  u8g2.drawHLine(cx - halfW - 3, handleY, 3);
+  u8g2.drawHLine(cx + halfW + 1, handleY, 3);
+  u8g2.drawCircle(cx - halfW - 4, handleY, 2, U8G2_DRAW_ALL);
+  u8g2.drawCircle(cx + halfW + 4, handleY, 2, U8G2_DRAW_ALL);
   u8g2.drawLine(innerX, lidY, outerX, lidY - lidLift - 2);
   u8g2.drawLine(innerX + (mirror ? -1 : 1), lidY + 1,
                 outerX + (mirror ? -1 : 1), lidY - lidLift - 1);
@@ -975,7 +975,7 @@ void drawHourglassAnimation(int16_t cx, int16_t topY, int16_t bottomY) {
   // presne ako sa stalo predtym (navyse pixel tesne pod cislicou "3")
   topY += 2;
 
-  const int16_t halfW = 9;           // o 25% uzsie nez predtym,
+  const int16_t halfW = 7;           // o 25% mensie v pomere,
                                       // na ziadost pouzivatela zmensit
                                       // presypacie hodiny v pomere k
                                       // zvacsenemu digitalnemu casu
