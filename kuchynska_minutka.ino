@@ -229,7 +229,7 @@ const uint8_t  MIN_MINUTES          = 1;
 const unsigned long MAX_SECONDS = (unsigned long)MAX_MINUTES * 60UL;
 const unsigned long ALARM_AUTO_OFF_MS = 60000UL;  // alarm pipa 1 minutu
 const unsigned long ALARM_PERIOD_MS   = 200;       // preryvavy ton - perioda 200 ms (aktivny buzzer)
-const unsigned long BUTTON_BEEP_MS    = 100;
+const unsigned long BUTTON_BEEP_MS    = 200;
 const unsigned long READY_SLEEP_MS    = 30000UL;
 const unsigned long SAVE_MSG_MS       = 1200;
 const unsigned long ANIM_STEP_MS      = 150;
@@ -311,14 +311,18 @@ void loop() {
   bMode.update();
   bSleep.update();
 
-  bool anyPressed = bStartStop.fell() || bMinutes.fell() || bMode.fell() || bSleep.fell();
-  if (bStartStop.fell()) buttonBeep();
-  if (bMinutes.fell()) buttonBeep();
-  if (bMode.fell()) buttonBeep();
+  bool startPressed = bStartStop.fell();
+  bool minutesPressed = bMinutes.fell();
+  bool modePressed = bMode.fell();
+  bool sleepPressed = bSleep.fell();
+  bool anyPressed = startPressed || minutesPressed || modePressed || sleepPressed;
+  if (startPressed) buttonBeep();
+  if (minutesPressed) buttonBeep();
+  if (modePressed) buttonBeep();
 
   // --- displej spi (ale MCU stale bezi a pocita) ---
   if (isDisplaySleeping) {
-    if (bSleep.fell()) {
+    if (sleepPressed) {
       wakeDisplay();
       ignoreSleepRelease = true;
     }
@@ -533,6 +537,7 @@ void buttonBeep() {
 void enterDeepSleep() {
   u8g2.setPowerSave(1);
   isDisplaySleeping = true;
+  bSleep.update();
 
   attachInterrupt(digitalPinToInterrupt(BTN_SLEEP), wakeISR, FALLING);
 
