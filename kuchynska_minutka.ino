@@ -235,8 +235,8 @@ const unsigned long PAUSE_SLEEP_MS    = 600000UL;
 const unsigned long WAKE_IGNORE_MS    = 10000UL;
 const unsigned long DIM_DELAY_MS      = 10000UL;
 const unsigned long DIM_THRESHOLD_SECONDS = 600UL;
-const uint8_t DISPLAY_CONTRAST        = 255;
-const uint8_t DIMMED_CONTRAST         = 50;
+const uint8_t DISPLAY_CONTRAST        = 1;
+const uint8_t DIMMED_CONTRAST         = 1;
 const unsigned long SAVE_MSG_MS       = 1200;
 const unsigned long ANIM_STEP_MS      = 150;
 
@@ -271,6 +271,8 @@ unsigned long pauseStartMillis = 0;
 unsigned long runningStartMillis = 0;
 bool displayDimmed = false;
 unsigned long beepUntil = 0;
+unsigned long welcomeStartMillis = 0;
+bool welcomeActive = false;
 
 uint8_t animFrame = 0;
 unsigned long lastAnimStep = 0;
@@ -336,6 +338,8 @@ void loop() {
     waitingForSleepRelease = true;
     lastActivityMillis = millis();
     ignoreSleepUntil = millis() + WAKE_IGNORE_MS;
+    welcomeStartMillis = millis();
+    welcomeActive = true;
     bSleep.update();
   }
   if (startPressed) buttonBeep();
@@ -350,6 +354,8 @@ void loop() {
       waitingForSleepRelease = true;
       lastActivityMillis = millis();
       ignoreSleepUntil = millis() + WAKE_IGNORE_MS;
+      welcomeStartMillis = millis();
+      welcomeActive = true;
     }
     updateTimer();
     handleAutomaticDimming();
@@ -618,6 +624,8 @@ void enterDeepSleep() {
   waitingForSleepRelease = true;
   lastActivityMillis = millis();
   ignoreSleepUntil = millis() + WAKE_IGNORE_MS;
+  welcomeStartMillis = millis();
+  welcomeActive = true;
   bSleep.update(); // aby sa budiace stlacenie nezapocitalo znova
 }
 
@@ -767,7 +775,9 @@ void drawModeNameCentered(int16_t y, bool compact) {
 void drawScreen() {
   u8g2.firstPage();
   do {
-    if (state == STATE_ALARM) {
+    if (welcomeActive) {
+      drawWelcomeScreen();
+    } else if (state == STATE_ALARM) {
       drawAlarmScreen();
     } else if (state == STATE_RUNNING || state == STATE_PAUSED) {
       drawRunningScreen();
@@ -775,6 +785,47 @@ void drawScreen() {
       drawReadyScreen();
     }
   } while (u8g2.nextPage());
+}
+
+void drawWelcomeScreen() {
+  unsigned long elapsed = millis() - welcomeStartMillis;
+  if (elapsed >= 2000UL) {
+    welcomeActive = false;
+    drawRunningOrReadyScreen();
+    return;
+  }
+
+  if (elapsed < 1000UL) {
+    char message[32];
+    strcpy_P(message, PSTR("Ahoj, čo dnes uvaríme?"));
+    u8g2.setFont(MODE_FONT);
+    int16_t width = u8g2.getUTF8Width(message);
+    u8g2.drawUTF8((128 - width) / 2, 31, message);
+    return;
+  }
+
+  bool wink = ((elapsed - 1000UL) / 180UL) % 2 == 0;
+  u8g2.drawCircle(64, 32, 20, U8G2_DRAW_ALL);
+  u8g2.drawDisc(56, 27, 2, U8G2_DRAW_ALL);
+  if (wink) {
+    u8g2.drawHLine(69, 27, 7);
+  } else {
+    u8g2.drawDisc(72, 27, 2, U8G2_DRAW_ALL);
+  }
+  u8g2.drawLine(54, 40, 58, 43);
+  u8g2.drawLine(58, 43, 64, 45);
+  u8g2.drawLine(64, 45, 70, 43);
+  u8g2.drawLine(70, 43, 74, 40);
+}
+
+void drawRunningOrReadyScreen() {
+  if (state == STATE_ALARM) {
+    drawAlarmScreen();
+  } else if (state == STATE_RUNNING || state == STATE_PAUSED) {
+    drawRunningScreen();
+  } else {
+    drawReadyScreen();
+  }
 }
 
 void drawReadyScreen() {
