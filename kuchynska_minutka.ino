@@ -100,7 +100,6 @@
 #include <avr/sleep.h>
 #include <avr/power.h>
 #include <stdio.h>
-#include <math.h>
 
 // ---------- Piny ----------
 #define BTN_START_STOP  4
@@ -882,11 +881,9 @@ void drawRunningScreen() {
 
   switch (currentMode) {
     case MODE_NONE:
-      // bottomY = 63 (spodok displeja) - vysledna vyska hodin ostava
-      // rovnaka (~33px, tj. tu istu ~15% redukciu) ako v predchadzajucich
-      // verziach, len sa cele o kusok posunuli nizsie kvoli vacsiemu
-      // fontu casu, a teraz vychadza presne na spodny okraj displeja.
-      drawHourglassAnimation(animCx, 42, 61);
+      // V defaultnom rezime sme odstranili tazku animaciu presypacich hodin,
+      // aby sa ušetrila flash/RAM pamäť. Zostáva len jednoduché pozadie bez
+      // zložitého vykreslovania a bez floatovej matematiky.
       drawSteamPotAnimation(38, 61, 0, false);
       drawSteamPotAnimation(90, 61, 9, true);
       break;
@@ -1011,134 +1008,6 @@ void drawSteamPotAnimation(int16_t cx, int16_t baseY, uint8_t phaseOffset, bool 
   if (mirror) wig = -wig;
   u8g2.drawLine(sx, sy, sx + wig, sy - 4);
   u8g2.drawLine(sx + wig, sy - 4, sx, sy - 8);
-}
-
-// Presypacie hodiny so zaobleny obrysom (nie rovne trojuholnikove steny
-// ako predtym) - napodobnuju klasicku ikonu presypacich hodin: hore a dole
-// rovne "viecko", banky su plne/zaoblene a zuzuju sa az tesne pri hrdle.
-// Mnozstvo piesku realne zodpoveda zostavajucemu / uplynutemu casu (horna
-// banka = zostava, dolna banka = uplynulo) - to zostalo rovnake ako predtym,
-// zmenil sa iba tvar (aj obrysu, aj samotneho piesku, aby kopiroval steny).
-void drawHourglassAnimation(int16_t cx, int16_t topY, int16_t bottomY) {
-  // mala rezerva zhora - "viecko" je teraz hrubsie (2px) a bez tejto
-  // rezervy by mohlo zasahovat do casu (cislic) zobrazenych nad hodinami,
-  // presne ako sa stalo predtym (navyse pixel tesne pod cislicou "3")
-  topY += 2;
-
-  const int16_t halfW = 7;           // o 25% mensie v pomere,
-                                      // na ziadost pouzivatela zmensit
-                                      // presypacie hodiny v pomere k
-                                      // zvacsenemu digitalnemu casu
-  const int16_t capW  = halfW;       // viecko ma ROVNAKU sirku ako stena banky
-                                      // v mieste, kde na ňu nadväzuje (y = topY /
-                                      // y = bottomY, teda t = 1 vo vzorci nizsie,
-                                      // co dava hw = halfW) - predtym tu bolo
-                                      // halfW + 3, cim viecko trcalo 3px na kazdu
-                                      // stranu navyse a vznikal viditelny zarez
-                                      // presne v rohoch, kde sa viecko stretava
-                                      // so stenou (vid fotka)
-  const int16_t neckY = (topY + bottomY) / 2;
-  const int16_t topBulbH    = neckY - topY;
-  const int16_t bottomBulbH = bottomY - neckY;
-
-  // horne a dolne rovne "viecko" - teraz hrubsie (2px miesto 1px). Horne
-  // rastie SMEROM DOLE (topY, topY+1) a dolne SMEROM HORE (bottomY-1,
-  // bottomY) - teda oboje "dnu" do tela hodin, nie von. Vdaka tomu sa
-  // celkovy obrys hodin nezvacsi navonok/nahor a nemoze zasahovat do casu
-  // zobrazeneho nad hodinami.
-  u8g2.drawHLine(cx - capW, topY,         capW * 2 + 1);
-  u8g2.drawHLine(cx - capW, topY + 1,     capW * 2 + 1);
-  u8g2.drawHLine(cx - capW, bottomY - 1,  capW * 2 + 1);
-  u8g2.drawHLine(cx - capW, bottomY,      capW * 2 + 1);
-
-  // Zaobleny obrys oboch baniek - polsirka sa k hrdlu zuzuje podla
-  // odmocninovej krivky (sqrt), vdaka comu je banka pri vieczku pekne
-  // plna/zaoblena a zuzi sa az prudko tesne pri hrdle - presne ako na
-  // referencnej ikone presypacich hodin.
-  for (int16_t y = topY; y <= neckY; y++) {
-    float t = (topBulbH > 0) ? (float)(neckY - y) / (float)topBulbH : 0.0;
-    int16_t hw = (int16_t)(halfW * sqrtf(t));
-    u8g2.drawPixel(cx - hw, y);
-    u8g2.drawPixel(cx + hw, y);
-  }
-  for (int16_t y = neckY; y <= bottomY; y++) {
-    float t = (bottomBulbH > 0) ? (float)(y - neckY) / (float)bottomBulbH : 0.0;
-    int16_t hw = (int16_t)(halfW * sqrtf(t));
-    u8g2.drawPixel(cx - hw, y);
-    u8g2.drawPixel(cx + hw, y);
-  }
-
-  float fractionRemaining = 0.0;
-  if (totalSecondsAtStart > 0) {
-    fractionRemaining = (float)remainingSeconds / (float)totalSecondsAtStart;
-  }
-  if (fractionRemaining < 0.0) fractionRemaining = 0.0;
-  if (fractionRemaining > 1.0) fractionRemaining = 1.0;
-  float fractionElapsed = 1.0 - fractionRemaining;
-
-  // medzera medzi sklom (obrysom) a pieskom - piesok je v kazdom riadku
-  // o SAND_GAP pixelov uzsi nez stena banky. POZOR: 1px medzera je na
-  // malom OLED displeji (128x64, navyse cez fotoaparat) prakticky
-  // neviditelna - jasne susedne pixely na OLED opticky "prekvitaju"
-  // (bloom) do seba, takze 1 tmavy pixel medzi nimi splynie. Preto 2px.
-  // TOTO PLATI ROVNAKO AJ ZVISLE (nie len vodorovne pri bokoch) - preto
-  // piesok pri hornom aj dolnom viecku musi nechat volne CELE 2 riadky
-  // (nie iba 1), inak sa vizualne "zlepi" s viečkom a medzera nie je
-  // vidno vobec (presne to sa stalo, ked bol rezervovany len 1 riadok).
-  const int16_t SAND_GAP = 2;
-
-  // piesok v hornej banke - jeho vyska (od hrdla nahor) klesa s casom,
-  // sirka v kazdom riadku kopiruje zaobleny obrys banky (znizenu o
-  // medzeru). POZOR: vyska sa pocita zaokruhlenim NAHOR (ceil), nie
-  // orezanim nadol - inak by pri malej vyske banky (len niekolko pixelov)
-  // posledny pixel piesku zmizol predcasne, este ked zostavalo nieco cez
-  // 10 sekund, a hodiny by tak pocas poslednych sekund uz vyzerali
-  // "prazdne" hoci cas este nie je 0. Vdaka ceil() zostane v hornej
-  // banke aspon 1px piesku, kym skutocne nezostava 0 sekund.
-  // maxSandTopH je znizena o SAND_GAP, aby piesok nikdy nezasiahol do
-  // poslednych SAND_GAP riadkov pri hornom viecku (topY..topY+SAND_GAP-1).
-  const int16_t maxSandTopH = (topBulbH > SAND_GAP) ? (topBulbH - SAND_GAP) : 0;
-  int16_t sandTopH = 0;
-  if (fractionRemaining > 0.0) {
-    sandTopH = (int16_t)ceilf(maxSandTopH * fractionRemaining);
-    if (sandTopH > maxSandTopH) sandTopH = maxSandTopH;
-  }
-  for (int16_t y = neckY; y > neckY - sandTopH; y--) {
-    float t = (topBulbH > 0) ? (float)(neckY - y) / (float)topBulbH : 0.0;
-    int16_t hw = (int16_t)(halfW * sqrtf(t)) - SAND_GAP;
-    if (hw > 0) u8g2.drawHLine(cx - hw, y, hw * 2 + 1);
-  }
-
-  // piesok v dolnej banke - pribuda odspodu priamo umerne uplynutemu casu,
-  // opat podla rovnakej zaoblenej krivky banky (znizenej o medzeru od skla).
-  //
-  // POZOR - dolezity rozdiel oproti hornemu pieskocu vyssie: horny piesok
-  // ma kotvu (neckY) DALEKO od viecka, takze uz len znizenie maxSandTopH o
-  // SAND_GAP samo od seba necha prazdny riadok pri vieccku. Dolny piesok
-  // ma ale kotvu priamo PRI vieccku (bottomY) - ak by sme kotvu posunuli
-  // len o SAND_GAP, piesok by skoncil hned VEDLA viecka (ktore je hrube
-  // 2 riadky: bottomY-1 a bottomY) bez akehokolvek prazdneho riadku medzi
-  // nimi. Preto sa kotva posuva o CAP_THICKNESS (hrubka viecka) + SAND_GAP
-  // - 1, cim vznikne rovnaky 1-riadkovy prazdny "vzduch" medzi pieskom a
-  // vieckom, aky prirodzene vznika aj hore.
-  const int16_t CAP_THICKNESS = 2;  // viecko = 2 riadky (viz drawHLine nizsie)
-  const int16_t bottomAnchorOffset = SAND_GAP + CAP_THICKNESS - 1;
-  const int16_t maxSandBottomH = (bottomBulbH > bottomAnchorOffset) ? (bottomBulbH - bottomAnchorOffset) : 0;
-  int16_t sandBottomH = (int16_t)(maxSandBottomH * fractionElapsed);
-  for (int16_t y = bottomY - bottomAnchorOffset; y > bottomY - bottomAnchorOffset - sandBottomH; y--) {
-    float t = (bottomBulbH > 0) ? (float)(y - neckY) / (float)bottomBulbH : 0.0;
-    int16_t hw = (int16_t)(halfW * sqrtf(t)) - SAND_GAP;
-    if (hw > 0) u8g2.drawHLine(cx - hw, y, hw * 2 + 1);
-  }
-
-  // padajuce zrnka piesku v hrdle, kym este nieco zostava - 2 zrnka za
-  // sebou pre plynulejsi dojem prudu piesku, kazde teraz 2px hrubke
-  // (vodorovna usecka dlzky 2, nie jeden osamely pixel ako predtym)
-  if (fractionRemaining > 0.01 && fractionRemaining < 0.99) {
-    uint8_t fallPhase = animFrame % 4;
-    u8g2.drawHLine(cx - 1, neckY - 3 + fallPhase, 2);
-    u8g2.drawHLine(cx - 1, neckY - 1 + fallPhase, 2);
-  }
 }
 
 // Knedlik / pizza so stupajucou parou (loop)
