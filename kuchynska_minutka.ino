@@ -625,23 +625,9 @@ void formatTime(unsigned long totalSeconds, char* buf) {
 }
 
 void drawTimeFixedCentered(const char* timeText, int16_t y) {
-  const int16_t digitWidth = u8g2.getStrWidth("8");
-  const int16_t colonWidth = u8g2.getStrWidth(":");
-  const int16_t totalWidth = digitWidth * 4 + colonWidth;
+  const int16_t totalWidth = u8g2.getStrWidth("88:88");
   const int16_t startX = (128 - totalWidth) / 2;
-  const int16_t colonX = startX + digitWidth * 2;
-  const int16_t secondStartX = colonX + colonWidth;
-  char digitText[2] = { 0, '\0' };
-
-  digitText[0] = timeText[0];
-  u8g2.drawStr(startX, y, digitText);
-  digitText[0] = timeText[1];
-  u8g2.drawStr(startX + digitWidth, y, digitText);
-  u8g2.drawStr(colonX, y, ":");
-  digitText[0] = timeText[3];
-  u8g2.drawStr(secondStartX, y, digitText);
-  digitText[0] = timeText[4];
-  u8g2.drawStr(secondStartX + digitWidth, y, digitText);
+  u8g2.drawStr(startX, y, timeText);
 }
 
 // Vykresli nazov aktualneho rezimu vycentrovany podla skutocnej dlzky
