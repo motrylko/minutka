@@ -251,6 +251,7 @@ unsigned long lastSecondTick = 0;
 TimerState state = STATE_READY;
 bool isDisplaySleeping = false;
 bool ignoreSleepRelease = false;
+bool waitingForSleepRelease = false;
 
 unsigned long alarmStartMillis = 0;
 unsigned long lastAlarmToggle = 0;
@@ -324,7 +325,7 @@ void loop() {
   if (isDisplaySleeping) {
     if (sleepPressed) {
       wakeDisplay();
-      ignoreSleepRelease = true;
+      waitingForSleepRelease = true;
     }
     updateTimer();
     if (state == STATE_ALARM) {
@@ -505,6 +506,11 @@ void handleModeButton() {
 // =========================================================
 void handleSleepButton() {
   if (bSleep.rose()) {
+    if (waitingForSleepRelease) {
+      waitingForSleepRelease = false;
+      ignoreSleepRelease = false;
+      return;
+    }
     lastActivityMillis = millis();
     if (ignoreSleepRelease) {
       ignoreSleepRelease = false;
@@ -552,7 +558,7 @@ void enterDeepSleep() {
   detachInterrupt(digitalPinToInterrupt(BTN_SLEEP));
 
   wakeDisplay();
-  ignoreSleepRelease = true;
+  waitingForSleepRelease = true;
   bSleep.update(); // aby sa budiace stlacenie nezapocitalo znova
 }
 
