@@ -960,8 +960,6 @@ void drawHourglassAnimation(int16_t cx, int16_t topY, int16_t bottomY) {
 
 // Knedlik / pizza so stupajucou parou (loop)
 void drawSteamAnimation(int16_t cx, int16_t baseY, bool isPizza) {
-  u8g2.setDrawColor(1);
-
   if (isPizza) {
     // -------------------------------------------------------
     // PIZZA - styl jednoduchého plátku ako na referencii
@@ -1015,6 +1013,7 @@ void drawSteamAnimation(int16_t cx, int16_t baseY, bool isPizza) {
       u8g2.drawHLine(outerX + 5, y, 2);
     }
     u8g2.drawLine(backX + 6, topBotY, tipX, tipY);
+    u8g2.setDrawColor(1);
 
     const int8_t dx[6] = { -12, -3, 7, -8, 3, 12 };
     const int8_t dy[6] = { -17, -18, -15, -9, -9, -11 };
@@ -1023,10 +1022,13 @@ void drawSteamAnimation(int16_t cx, int16_t baseY, bool isPizza) {
     for (uint8_t i = 0; i < 6; i++) {
       int16_t tx = cx + dx[i];
       int16_t ty = baseY + dy[i];
+      u8g2.setDrawColor(0);
       u8g2.drawDisc(tx, ty, radius[i], U8G2_DRAW_ALL);
+      u8g2.setDrawColor(1);
     }
 
     // Malý čierny detail pri špičke, podobný otvoru/okraju na referenčnej ikone.
+    u8g2.setDrawColor(0);
     u8g2.drawPixel(tipX - 5, tipY);
     u8g2.setDrawColor(1);
 
