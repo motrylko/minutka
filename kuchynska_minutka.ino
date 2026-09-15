@@ -236,7 +236,7 @@ const unsigned long WAKE_IGNORE_MS    = 10000UL;
 const unsigned long DIM_DELAY_MS      = 10000UL;
 const unsigned long DIM_THRESHOLD_SECONDS = 600UL;
 const uint8_t DISPLAY_CONTRAST        = 255;
-const uint8_t DIMMED_CONTRAST         = 128;
+const uint8_t DIMMED_CONTRAST         = 90;
 const unsigned long SAVE_MSG_MS       = 1200;
 const unsigned long ANIM_STEP_MS      = 150;
 
@@ -847,6 +847,8 @@ void drawRunningScreen() {
       // verziach, len sa cele o kusok posunuli nizsie kvoli vacsiemu
       // fontu casu, a teraz vychadza presne na spodny okraj displeja.
       drawHourglassAnimation(animCx, animTopY, 63);
+      drawSteamPotAnimation(39, 63, 0, false);
+      drawSteamPotAnimation(89, 63, 9, true);
       break;
     case MODE_EGG_SOFT:
     case MODE_EGG_HARD:
@@ -925,6 +927,29 @@ void drawEggPotAnimation(int16_t cx, int16_t baseY) {
     if (sy < potTopY - 20) continue;
     int8_t wig = ((localFrame / 3) % 2 == 0) ? -2 : 2;
     u8g2.drawLine(sx, sy, sx + wig, sy - 4);
+  }
+}
+
+void drawSteamPotAnimation(int16_t cx, int16_t baseY, uint8_t phaseOffset, bool mirror) {
+  const int16_t potTopY = baseY - 8;
+  const int16_t halfW = 6;
+  uint8_t phase = (animFrame + phaseOffset) % 24;
+  int16_t lidLift = (phase < 5) ? (int16_t)(5 - phase) / 2 : 0;
+  int16_t lidY = potTopY - 1 - lidLift;
+
+  u8g2.drawFrame(cx - halfW, potTopY + 2, halfW * 2 + 1, 6);
+  u8g2.drawHLine(cx - halfW - 1, baseY, halfW * 2 + 3);
+  u8g2.drawHLine(cx - halfW - 1, lidY, halfW * 2 + 3);
+
+  for (uint8_t i = 0; i < 2; i++) {
+    uint8_t steamPhase = (phase + i * 7) % 24;
+    int16_t sx = cx - 3 + i * 6;
+    int16_t sy = lidY - 2 - (steamPhase % 10);
+    if (sy < lidY - 10) continue;
+    int8_t wig = ((steamPhase / 3) % 2 == 0) ? -1 : 1;
+    if (mirror) wig = -wig;
+    u8g2.drawLine(sx, sy, sx + wig, sy - 3);
+    u8g2.drawLine(sx + wig, sy - 3, sx, sy - 6);
   }
 }
 
