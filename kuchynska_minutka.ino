@@ -15,6 +15,9 @@
        SW  -> D2   (potrebuje hardverove prerusenie na budenie
                     z hlbokeho spanku)
    - Pasivny buzzer (+ na D9, - na GND)
+     - Li-ion bateria 1S: BAT+ -> 100k -> A0 -> 100k -> GND
+       BAT- a Arduino GND musia byt spojene; A0 nikdy nepripajaj
+       priamo na bateriu. Volitelne 100 nF medzi A0 a GND.
 
   POTREBNE KNIZNICE (Library Manager v Arduine IDE):
    - U8g2 (autor: oliver)
@@ -80,6 +83,7 @@
 #define ENCODER_DT_PIN  4
 #define ENCODER_SW_PIN  2
 #define BUZZER_PIN      9
+#define BATTERY_SENSE_PIN A0
 
 // ---------- Displej ----------
 // Ak nefunguje, skus U8G2_SSD1309_128X64_NONAME2_F_HW_I2C
@@ -203,6 +207,7 @@ const unsigned long DIM_DELAY_MS      = 60000UL;
 const unsigned long DIM_THRESHOLD_SECONDS = 600UL;
 const uint8_t DISPLAY_CONTRAST        = 255;
 const uint8_t DIMMED_CONTRAST         = 1;
+const unsigned long BATTERY_SAMPLE_INTERVAL_MS = 1000UL;
 const unsigned long ANIM_STEP_MS      = 150;
 
 // ---------- EEPROM adresy ----------
@@ -237,6 +242,9 @@ bool welcomeActive = false;
 
 uint8_t animFrame = 0;
 unsigned long lastAnimStep = 0;
+uint16_t batteryMillivolts = 0;
+unsigned long lastBatterySampleMillis = 0;
+bool batterySampled = false;
 
 bool modeSelectionActive = true;
 unsigned long encoderPressStart = 0;
@@ -252,6 +260,7 @@ void setup() {
   pinMode(ENCODER_CLK_PIN, INPUT_PULLUP);
   pinMode(ENCODER_DT_PIN, INPUT_PULLUP);
   pinMode(ENCODER_SW_PIN, INPUT_PULLUP);
+  pinMode(BATTERY_SENSE_PIN, INPUT);
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
 
@@ -273,11 +282,25 @@ void setup() {
   lastActivityMillis = millis();
 }
 
+void updateBatteryVoltage() {
+  unsigned long now = millis();
+  if (batterySampled && now - lastBatterySampleMillis < BATTERY_SAMPLE_INTERVAL_MS) return;
+
+  lastBatterySampleMillis = now;
+  batterySampled = true;
+  uint32_t adcTotal = 0;
+  for (uint8_t sampleIndex = 0; sampleIndex < 8; sampleIndex++) {
+    adcTotal += analogRead(BATTERY_SENSE_PIN);
+  }
+  batteryMillivolts = (uint16_t)((adcTotal * 10000UL) / (8UL * 1023UL));
+}
+
 // =========================================================
 //  HLAVNA SLUCKA
 // =========================================================
 void loop() {
   bEncoderButton.update();
+  updateBatteryVoltage();
   int16_t encoderDetents = readEncoderDetents();
   bool encoderPressed = bEncoderButton.fell();
   bool encoderReleased = bEncoderButton.rose();
@@ -742,6 +765,23 @@ void drawReadyScreen() {
   drawTimeCentered(buf, 50);
 }
 
+uint8_t batteryLevelSegments() {
+  if (batteryMillivolts >= 4000) return 4;
+  if (batteryMillivolts >= 3800) return 3;
+  if (batteryMillivolts >= 3600) return 2;
+  if (batteryMillivolts >= 3400) return 1;
+  return 0;
+}
+
+void drawBatteryIcon(int16_t x, int16_t y) {
+  u8g2.drawFrame(x, y, 18, 10);
+  u8g2.drawBox(x + 18, y + 3, 2, 4);
+  uint8_t segments = batteryLevelSegments();
+  for (uint8_t segment = 0; segment < segments; segment++) {
+    u8g2.drawBox(x + 2 + segment * 4, y + 2, 2, 6);
+  }
+}
+
 void drawRunningScreen() {
   bool hasName = (currentMode != MODE_NONE);
 
@@ -798,6 +838,8 @@ void drawRunningScreen() {
       drawSteamAnimation(animCx, 63, true);
       break;
   }
+
+  drawBatteryIcon(107, 45);
 }
 
 void drawAlarmScreen() {
