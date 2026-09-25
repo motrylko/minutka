@@ -9,14 +9,11 @@
        GND -> GND
        SDA -> A4
        SCL -> A5
-   - 4x tlacidlo (jeden koniec na GND, druhy na pin - vyuzivame
-     interny pull-up, ziadne externe rezistory netreba)
-       BTN_START_STOP -> D4
-       BTN_MINUTES    -> D5
-       BTN_MODE       -> D6
-       BTN_SLEEP      -> D2   (MUSI byt D2 alebo D3 - potrebuje
-                               hardverove prerusenie na budenie
-                               z hlbokeho spanku)
+   - Rotary encoder s tlacidlom (interny pull-up, spolocna GND)
+       CLK -> D3
+       DT  -> D4
+       SW  -> D2   (potrebuje hardverove prerusenie na budenie
+                    z hlbokeho spanku)
    - Pasivny buzzer (+ na D9, - na GND)
 
   POTREBNE KNIZNICE (Library Manager v Arduine IDE):
@@ -26,41 +23,17 @@
    nic dalsie netreba instalovat.
 
   OVLADANIE:
-   - START/STOP: kratke = start / pauza / pokracovanie
-                 dlhe (drz aspon 2 sekundy) = reset - spusti sa HNED po
-                           uplynuti 2s (kym je tlacidlo este stale drzane),
-                           netreba ho pustit.
-                           V ZIADNOM-REZIME (standardna minutka bez nazvu)
-                           tento reset VZDY vynuluje cas na 00:00, nech uz
-                           bol pred tym nastaveny akykolvek cas.
-                           V POMENOVANYCH REZIMOCH (vajicko, knedlik,
-                           pizza) reset naopak nastavi ulozeny preset pre
-                           dany rezim - tak ako doteraz, bez zmeny.
-   - MINUTY:     kratke = +1 min (funguje len pred spustenim)
-                 drzanie = rovnaky "tik" ako predtym pri sekundach
-                           (cca kazdych 333 ms pri rychlosti 3.0), ale
-                           kazdy tik teraz prida CELU MINUTU namiesto
-                           1 sekundy - t.j. cca 3 min pribudnu za kazdu
-                           1 sekundu drzania tlacidla
-   - MODE:       kratke = dalsi rezim (vratane "ziadny rezim" =
-                           standardna minutka bez nazvu)
-                 dlhe (drz)  = ulozi aktualne nastavene minuty
-                           ako novy cas pre tento rezim (natrvalo,
-                           do EEPROM)
-   - SLEEP:      kratke = uspi displej / cele Arduino (podla toho
-                           ci prave nieco pocitame), znova stlac
-                           na zobudenie
+  - VYBER REZIMU: otacanim vyber rezim v oboch smeroch, stlac na potvrdenie
+  - NASTAVENIE: vo volnom rezime otacanim pridaj/uber minuty;
+            stlac na start / pauzu / pokracovanie
+  - DLHE STLACENIE (2 s): reset a navrat do vyberu rezimu
+  - Tlacidlo enkodera budi zariadenie z automatickeho spanku
 
-  REZIMY: po zapnuti je VZDY aktivna "ziadny rezim" - standardna
-  minutka bez nazvu. POZOR: tento rezim si vobec NEPAMATA ulozeny
-  preset a VZDY pracuje s casom 00:00 - a to nielen hned po zapnuti
-  napajania, ale aj kedykolvek sa nan prepne tlacidlom MODE pocas
-  behu programu, aj pri resete tlacidlom START/STOP (dlhe drzanie).
-  Ulozeny preset v EEPROM pre tento rezim tak realne uz nema ziadny
-  vplyv na zobrazovany cas. Tlacidlom MODE sa da prepnut na
-  pomenovane rezimy (vajicko namakko/natvrdo, knedlik, pizza), ktore
-  maju vlastnu animaciu behom varenia a ich ulozeny preset sa
-  pouziva normalne (bez zmeny oproti povodnemu spravaniu).
+  REZIMY: po zapnuti je zvoleny volny rezim (bez nazvu, 00:00) a
+  aktivny vyber rezimu. Otacanim sa prechadza medzi volnym rezimom
+  a pomenovanymi rezimami oboma smermi; stlacenim sa rezim potvrdi.
+  Vo volnom rezime potom otacanie meni cas po minutach. Dlhe stlacenie
+  resetuje cas a vrati ovladanie do vyberu rezimu.
 
   DIAKRITIKA: nazvy rezimov pouzivaju slovenske znaky a preto sa
   vykresluju cez vlastny font u8g2_font_unifont_t_slovak (funkcie
@@ -102,21 +75,19 @@
 #include <stdio.h>
 
 // ---------- Piny ----------
-#define BTN_START_STOP  4
-#define BTN_MINUTES     5
-#define BTN_MODE        6
-#define BTN_SLEEP       2
+#define ENCODER_CLK_PIN 3
+#define ENCODER_DT_PIN  4
+#define ENCODER_SW_PIN  2
 #define BUZZER_PIN      9
 
 // ---------- Displej ----------
 // Ak nefunguje, skus U8G2_SSD1309_128X64_NONAME2_F_HW_I2C
 U8G2_SSD1309_128X64_NONAME0_1_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
-// ---------- Tlacidla (debounce) ----------
-Bounce bStartStop = Bounce();
-Bounce bMinutes   = Bounce();
-Bounce bMode      = Bounce();
-Bounce bSleep     = Bounce();
+// ---------- Enkoder ----------
+Bounce bEncoderButton = Bounce();
+uint8_t previousEncoderState = 0;
+int8_t encoderQuarterSteps = 0;
 
 // ---------- Stavy a rezimy ----------
 enum TimerState : uint8_t { STATE_READY, STATE_RUNNING, STATE_PAUSED, STATE_ALARM };
@@ -209,20 +180,12 @@ const uint8_t u8g2_font_unifont_t_slovak[1805] U8G2_FONT_SECTION("u8g2_font_unif
 // (namiesto povodneho u8g2_font_unifont_t_polish, ktory ju nemal)
 #define MODE_FONT u8g2_font_unifont_t_slovak
 
-// Predvolene casy pri prvom spusteni (potom sa daju upravit a ulozit
-// dlhym stlacenim MODE - hodnota knedlika 20 min je len odhad, uprav podla chuti)
+// Predvolene casy zapisane do EEPROM pri prvom spusteni.
 const uint8_t defaultPresetMinutes[MODE_COUNT] = { 5, 5, 10, 20, 30 };
 
 // ---------- Casove konstanty ----------
-const uint16_t LONG_PRESS_MS        = 600;
-// Reset casu podrzanim START/STOP - musi sa drzat aspon takto dlho a
-// akcia sa spusti HNED (kym je tlacidlo este drzane), nie az po pusteni
+// Reset podrzanim integrovaneho tlacidla enkodera.
 const uint16_t RESET_HOLD_MS        = 2000;
-// Plynule pridavanie casu pri drzani MINUTY:
-// rychlost = kolko sekund "zaslozeneho" casu pribudne za kazdu 1 sekundu
-// drzania tlacidla - ale realne sa pripocitava az po celych minutach
-// (60 s naraz), nie po jednotlivych sekundach
-const float    MINUTES_HOLD_RATE_SEC_PER_SEC = 3.0;
 const uint8_t  MAX_MINUTES          = 99;
 const uint8_t  MIN_MINUTES          = 1;
 const unsigned long MAX_SECONDS = (unsigned long)MAX_MINUTES * 60UL;
@@ -231,12 +194,10 @@ const unsigned long ALARM_PERIOD_MS   = 200;       // preryvavy ton - perioda 20
 const unsigned long BUTTON_BEEP_MS    = 150;
 const unsigned long READY_SLEEP_MS    = 30000UL;
 const unsigned long PAUSE_SLEEP_MS    = 600000UL;
-const unsigned long WAKE_IGNORE_MS    = 10000UL;
 const unsigned long DIM_DELAY_MS      = 10000UL;
 const unsigned long DIM_THRESHOLD_SECONDS = 600UL;
 const uint8_t DISPLAY_CONTRAST        = 1;
 const uint8_t DIMMED_CONTRAST         = 1;
-const unsigned long SAVE_MSG_MS       = 1200;
 const unsigned long ANIM_STEP_MS      = 150;
 
 // ---------- EEPROM adresy ----------
@@ -255,16 +216,12 @@ unsigned long lastSecondTick = 0;
 
 TimerState state = STATE_READY;
 bool isDisplaySleeping = false;
-bool ignoreSleepRelease = false;
-bool waitingForSleepRelease = false;
+bool ignoreEncoderClickUntilRelease = false;
 volatile bool sleepWakeRequested = false;
-unsigned long ignoreSleepUntil = 0;
-
 unsigned long alarmStartMillis = 0;
 unsigned long lastAlarmToggle = 0;
 bool alarmToneOn = false;
 
-unsigned long savedMsgUntil = 0;
 unsigned long lastActivityMillis = 0;
 unsigned long pauseStartMillis = 0;
 unsigned long runningStartMillis = 0;
@@ -276,34 +233,23 @@ bool welcomeActive = false;
 uint8_t animFrame = 0;
 unsigned long lastAnimStep = 0;
 
-unsigned long minutesPressStart = 0;
-unsigned long minutesLastTickMs = 0;
-float minutesAccumSeconds = 0.0;
-bool minutesRepeating = false;
-
-unsigned long modePressStart = 0;
-unsigned long startPressStart = 0;
+bool modeSelectionActive = true;
+unsigned long encoderPressStart = 0;
 bool startStopLongActionDone = false; // true = reset uz prebehol pocas tohto drzania
 
 // =========================================================
 //  SETUP
 // =========================================================
 void setup() {
-  pinMode(BTN_START_STOP, INPUT_PULLUP);
-  pinMode(BTN_MINUTES, INPUT_PULLUP);
-  pinMode(BTN_MODE, INPUT_PULLUP);
-  pinMode(BTN_SLEEP, INPUT_PULLUP);
+  pinMode(ENCODER_CLK_PIN, INPUT_PULLUP);
+  pinMode(ENCODER_DT_PIN, INPUT_PULLUP);
+  pinMode(ENCODER_SW_PIN, INPUT_PULLUP);
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
 
-  bStartStop.attach(BTN_START_STOP);
-  bStartStop.interval(20);
-  bMinutes.attach(BTN_MINUTES);
-  bMinutes.interval(20);
-  bMode.attach(BTN_MODE);
-  bMode.interval(20);
-  bSleep.attach(BTN_SLEEP);
-  bSleep.interval(20);
+  bEncoderButton.attach(ENCODER_SW_PIN);
+  bEncoderButton.interval(20);
+  previousEncoderState = readEncoderState();
 
   u8g2.begin();
 
@@ -320,39 +266,29 @@ void setup() {
 //  HLAVNA SLUCKA
 // =========================================================
 void loop() {
-  bStartStop.update();
-  bMinutes.update();
-  bMode.update();
-  bSleep.update();
-
-  bool startPressed = bStartStop.fell();
-  bool minutesPressed = bMinutes.fell();
-  bool modePressed = bMode.fell();
-  bool sleepPressed = bSleep.fell();
-  bool anyPressed = startPressed || minutesPressed || modePressed || sleepPressed;
+  bEncoderButton.update();
+  int8_t encoderDetents = readEncoderDetents();
+  bool encoderPressed = bEncoderButton.fell();
+  bool encoderReleased = bEncoderButton.rose();
+  bool anyInput = encoderDetents != 0 || encoderPressed;
   if (sleepWakeRequested) {
     sleepWakeRequested = false;
     wakeDisplay();
     isDisplaySleeping = false;
-    waitingForSleepRelease = true;
+    ignoreEncoderClickUntilRelease = true;
     lastActivityMillis = millis();
-    ignoreSleepUntil = millis() + WAKE_IGNORE_MS;
     welcomeStartMillis = millis();
     welcomeActive = true;
-    bSleep.update();
   }
-  if (startPressed) buttonBeep();
-  if (minutesPressed) buttonBeep();
-  if (modePressed) buttonBeep();
+  if (encoderPressed) buttonBeep();
   updateButtonBeep();
 
   // --- displej spi (ale MCU stale bezi a pocita) ---
   if (isDisplaySleeping) {
-    if (sleepPressed) {
+    if (encoderPressed) {
       wakeDisplay();
-      waitingForSleepRelease = true;
+      ignoreEncoderClickUntilRelease = true;
       lastActivityMillis = millis();
-      ignoreSleepUntil = millis() + WAKE_IGNORE_MS;
       welcomeStartMillis = millis();
       welcomeActive = true;
     }
@@ -368,7 +304,8 @@ void loop() {
 
   // --- prebieha alarm - hocijake tlacidlo ho stlmi ---
   if (state == STATE_ALARM) {
-    if (anyPressed) {
+    if (anyInput) {
+      if (encoderPressed) ignoreEncoderClickUntilRelease = true;
       stopAlarm();
     } else {
       handleAlarmSound();
@@ -378,10 +315,8 @@ void loop() {
     return;
   }
 
-  handleStartStopButton();
-  handleMinutesButton();
-  handleModeButton();
-  handleSleepButton();
+  handleEncoderRotation(encoderDetents);
+  handleEncoderButton(encoderPressed, encoderReleased);
 
   updateTimer();
   updateAnimation();
@@ -390,180 +325,124 @@ void loop() {
   handleAutomaticSleep();
 }
 
-// =========================================================
-//  TLACIDLO START/STOP
-// =========================================================
-void handleStartStopButton() {
-  if (bStartStop.fell()) {
-    startPressStart = millis();
+// Quadrature dekoder: jeden detent predstavuje styri platne prechody.
+uint8_t readEncoderState() {
+  return (digitalRead(ENCODER_CLK_PIN) << 1) | digitalRead(ENCODER_DT_PIN);
+}
+
+int8_t readEncoderDetents() {
+  static const int8_t transitionTable[16] = {
+    0, -1, 1, 0, 1, 0, 0, -1,
+    -1, 0, 0, 1, 0, 1, -1, 0
+  };
+  uint8_t currentState = readEncoderState();
+  uint8_t tableIndex = (previousEncoderState << 2) | currentState;
+  encoderQuarterSteps += transitionTable[tableIndex];
+  previousEncoderState = currentState;
+
+  if (encoderQuarterSteps >= 4) {
+    int8_t detents = encoderQuarterSteps / 4;
+    encoderQuarterSteps %= 4;
+    return detents;
+  }
+  if (encoderQuarterSteps <= -4) {
+    int8_t detents = encoderQuarterSteps / 4;
+    encoderQuarterSteps %= 4;
+    return detents;
+  }
+  return 0;
+}
+
+void handleEncoderRotation(int8_t detents) {
+  if (detents == 0 || state != STATE_READY) return;
+  lastActivityMillis = millis();
+
+  while (detents != 0) {
+    int8_t direction = detents > 0 ? 1 : -1;
+    detents -= direction;
+
+    if (modeSelectionActive) {
+      int16_t nextMode = (int16_t)currentMode + direction;
+      if (nextMode < 0) nextMode = MODE_COUNT - 1;
+      if (nextMode >= MODE_COUNT) nextMode = 0;
+      currentMode = (uint8_t)nextMode;
+      remainingSeconds = presetSecondsFor(currentMode);
+    } else if (currentMode == MODE_NONE) {
+      if (direction > 0) {
+        remainingSeconds = min(remainingSeconds + 60UL, MAX_SECONDS);
+      } else if (remainingSeconds >= 60UL) {
+        remainingSeconds -= 60UL;
+      } else {
+        remainingSeconds = 0;
+      }
+    }
+  }
+}
+
+void handleEncoderButton(bool pressed, bool released) {
+  if (pressed) {
+    encoderPressStart = millis();
     startStopLongActionDone = false;
     lastActivityMillis = millis();
   }
 
-  // Kym je tlacidlo drzane, priebezne sleduj ci uz ubehli 3 sekundy.
-  // Ak ano, reset sa spusti HNED (nie az po pusteni tlacidla).
-  if (bStartStop.read() == LOW && !startStopLongActionDone) {
-    if (millis() - startPressStart >= RESET_HOLD_MS) {
-      resetToPreset();
-      startStopLongActionDone = true; // aby sa reset nezopakoval znova a znova
-    }
+    if (bEncoderButton.read() == LOW && !ignoreEncoderClickUntilRelease &&
+      !startStopLongActionDone &&
+      millis() - encoderPressStart >= RESET_HOLD_MS) {
+    resetToPreset();
+    modeSelectionActive = true;
+    startStopLongActionDone = true;
   }
 
-  if (bStartStop.rose()) {
-    // Ak dlhe drzanie uz spustilo reset, kratke-stlacenie akcia sa NEROBI
-    // (inak by sa po pusteni tlacidla hned znova prepol stav start/pauza)
-    if (!startStopLongActionDone) {
-      switch (state) {
-        case STATE_READY:
-          if (remainingSeconds > 0) {
-            totalSecondsAtStart = remainingSeconds;
-            lastSecondTick = millis();
-            runningStartMillis = millis();
-            pauseStartMillis = 0;
-            restoreDisplayBrightness();
-            animFrame = 0;
-            state = STATE_RUNNING;
-          }
-          break;
-        case STATE_RUNNING:
-          state = STATE_PAUSED;
-          pauseStartMillis = millis();
-          restoreDisplayBrightness();
-          break;
-        case STATE_PAUSED:
-          lastSecondTick = millis();
-          pauseStartMillis = 0;
-          runningStartMillis = millis();
-          state = STATE_RUNNING;
-          break;
-        default:
-          break;
-      }
-    }
+  if (!released) return;
+  if (ignoreEncoderClickUntilRelease) {
+    ignoreEncoderClickUntilRelease = false;
     startStopLongActionDone = false;
+    return;
   }
+
+  if (!startStopLongActionDone) {
+    if (state == STATE_READY) {
+      if (modeSelectionActive) {
+        modeSelectionActive = false;
+      } else if (remainingSeconds > 0) {
+        totalSecondsAtStart = remainingSeconds;
+        lastSecondTick = millis();
+        runningStartMillis = millis();
+        pauseStartMillis = 0;
+        restoreDisplayBrightness();
+        animFrame = 0;
+        state = STATE_RUNNING;
+      }
+    } else if (state == STATE_RUNNING) {
+      state = STATE_PAUSED;
+      pauseStartMillis = millis();
+      restoreDisplayBrightness();
+    } else if (state == STATE_PAUSED) {
+      lastSecondTick = millis();
+      pauseStartMillis = 0;
+      runningStartMillis = millis();
+      state = STATE_RUNNING;
+    }
+  }
+  startStopLongActionDone = false;
 }
 
 void resetToPreset() {
   state = STATE_READY;
-  // MODE_NONE -> vzdy 00:00 (nech uz bol pred tym nastaveny akykolvek
-  // cas); pomenovane rezimy -> ich ulozeny preset, bez zmeny
   remainingSeconds = presetSecondsFor(currentMode);
-}
-
-// =========================================================
-//  TLACIDLO MINUTY (s auto-opakovanim pri drzani)
-// =========================================================
-void handleMinutesButton() {
-  if (state != STATE_READY) return; // pocas behu sa cas neupravuje
-
-  if (bMinutes.fell()) {
-    minutesPressStart = millis();
-    minutesRepeating = false;
-    lastActivityMillis = millis();
-  }
-
-  if (bMinutes.read() == LOW) {
-    unsigned long held = millis() - minutesPressStart;
-    if (held >= LONG_PRESS_MS) {
-      unsigned long now = millis();
-      if (!minutesRepeating) {
-        // prave sme presli z kratkeho tapu do plynuleho drzania - zacni pocitat odteraz
-        minutesRepeating = true;
-        minutesLastTickMs = now;
-        minutesAccumSeconds = 0.0;
-      }
-      unsigned long deltaMs = now - minutesLastTickMs;
-      minutesLastTickMs = now;
-      // rovnaka frekvencia "tikov" ako predtym pri sekundach (kazdych
-      // ~333 ms pri rychlosti 3.0), len teraz sa pri kazdom tiku
-      // pripocita rovno CELA MINUTA (60 s) namiesto 1 sekundy
-      minutesAccumSeconds += (deltaMs / 1000.0) * MINUTES_HOLD_RATE_SEC_PER_SEC;
-      while (minutesAccumSeconds >= 1.0) {
-        addSeconds(60); // +1 cela minuta na kazdy tik
-        minutesAccumSeconds -= 1.0;
-      }
-    }
-  }
-
-  if (bMinutes.rose()) {
-    unsigned long heldFor = millis() - minutesPressStart;
-    if (!minutesRepeating && heldFor < LONG_PRESS_MS) {
-      addSeconds(60); // obycajny kratky tap = +1 min
-    }
-    minutesRepeating = false;
-  }
-}
-
-void addSeconds(unsigned long sec) {
-  unsigned long newVal = remainingSeconds + sec;
-  if (newVal > MAX_SECONDS) newVal = MAX_SECONDS;
-  remainingSeconds = newVal;
+  modeSelectionActive = true;
 }
 
 // Vrati cas (v sekundach), na ktory sa ma nastavit dany rezim - pre
 // ziadny-rezim (MODE_NONE) je to VZDY 00:00, pre pomenovane rezimy je
 // to ich ulozeny preset (bez zmeny oproti povodnemu spravaniu).
-// Pouziva sa v setup(), pri prepnuti rezimu, pri resete tlacidlom
-// START/STOP aj po skonceni alarmu, aby sa toto pravidlo dodrzalo
+// Pouziva sa v setup(), pri prepnuti rezimu, pri resete enkoderom
+// aj po skonceni alarmu, aby sa toto pravidlo dodrzalo
 // konzistentne na vsetkych miestach.
 unsigned long presetSecondsFor(uint8_t mode) {
   if (mode == MODE_NONE) return 0UL;
   return (unsigned long)presetMinutes[mode] * 60UL;
-}
-
-// =========================================================
-//  TLACIDLO MODE
-// =========================================================
-void handleModeButton() {
-  if (bMode.fell()) {
-    modePressStart = millis();
-    lastActivityMillis = millis();
-  }
-  if (bMode.rose()) {
-    unsigned long heldFor = millis() - modePressStart;
-    if (state != STATE_READY) return; // mod sa meni len pred spustenim
-
-    if (heldFor >= LONG_PRESS_MS) {
-      // ulozi aktualny cas (zaokruhleny na cele minuty) ako novy preset pre tento rezim
-      unsigned long mins = remainingSeconds / 60UL;
-      if (mins < MIN_MINUTES) mins = MIN_MINUTES;
-      if (mins > MAX_MINUTES) mins = MAX_MINUTES;
-      presetMinutes[currentMode] = (uint8_t)mins;
-      saveSettings();
-      savedMsgUntil = millis() + SAVE_MSG_MS;
-    } else {
-      currentMode = (currentMode + 1) % MODE_COUNT;
-      remainingSeconds = presetSecondsFor(currentMode);
-    }
-  }
-}
-
-// =========================================================
-//  TLACIDLO SLEEP
-// =========================================================
-void handleSleepButton() {
-  if (millis() < ignoreSleepUntil) {
-    return;
-  }
-  if (bSleep.rose()) {
-    if (waitingForSleepRelease) {
-      waitingForSleepRelease = false;
-      ignoreSleepRelease = false;
-      return;
-    }
-    lastActivityMillis = millis();
-    if (ignoreSleepRelease) {
-      ignoreSleepRelease = false;
-      return;
-    }
-    if (state == STATE_READY) {
-      enterDeepSleep(); // ozajstny power-down, nic sa nepocita
-    } else {
-      u8g2.setPowerSave(1); // len vypni displej, MCU pocita dalej
-      isDisplaySleeping = true;
-    }
-  }
 }
 
 void wakeDisplay() {
@@ -605,9 +484,9 @@ void enterDeepSleep() {
   restoreDisplayBrightness();
   u8g2.setPowerSave(1);
   isDisplaySleeping = true;
-  bSleep.update();
+  bEncoderButton.update();
 
-  attachInterrupt(digitalPinToInterrupt(BTN_SLEEP), wakeISR, FALLING);
+  attachInterrupt(digitalPinToInterrupt(ENCODER_SW_PIN), wakeISR, FALLING);
 
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
   noInterrupts();
@@ -617,15 +496,14 @@ void enterDeepSleep() {
 
   // sem sa dostaneme az po prebudeni
   sleep_disable();
-  detachInterrupt(digitalPinToInterrupt(BTN_SLEEP));
+  detachInterrupt(digitalPinToInterrupt(ENCODER_SW_PIN));
 
   wakeDisplay();
-  waitingForSleepRelease = true;
+  ignoreEncoderClickUntilRelease = true;
   lastActivityMillis = millis();
-  ignoreSleepUntil = millis() + WAKE_IGNORE_MS;
   welcomeStartMillis = millis();
   welcomeActive = true;
-  bSleep.update(); // aby sa budiace stlacenie nezapocitalo znova
+  bEncoderButton.update(); // aby sa budiace stlacenie nezapocitalo znova
 }
 
 // =========================================================
@@ -682,6 +560,7 @@ void stopAlarm() {
   digitalWrite(BUZZER_PIN, LOW);
   state = STATE_READY;
   remainingSeconds = presetSecondsFor(currentMode);
+  modeSelectionActive = true;
   lastActivityMillis = millis();
   restoreDisplayBrightness();
 }
@@ -715,10 +594,6 @@ void loadSettings() {
   }
   // Po zapnuti je vzdy aktivna standardna minutka bez nazvu rezimu
   currentMode = MODE_NONE;
-}
-
-void saveSettings() {
-  EEPROM.update(EE_PRESET_ADDR + currentMode, presetMinutes[currentMode]); // .update() setri EEPROM
 }
 
 // =========================================================
@@ -830,25 +705,22 @@ void drawReadyScreen() {
   // nizsie ako povodnych 10 px, aby sa cely zmestil od horneho okraja)
   drawModeNameCentered(14, false);
 
-  if (millis() < savedMsgUntil) {
-    const char* msg = "ULOZENE!";
-    u8g2.setFont(u8g2_font_7x14B_tr);
-    int mw = u8g2.getStrWidth(msg);
-    u8g2.drawStr((128 - mw) / 2, 40, msg);
-    return;
-  }
-
   char buf[6];
   formatTime(remainingSeconds, buf);
   if (currentMode == MODE_NONE) {
-    char prompt[12];
-    strcpy_P(prompt, PSTR("Nastav čas"));
+    const char* prompt = modeSelectionActive ? "Vyber rezim" : "Nastav čas";
     u8g2.setFont(MODE_FONT);
     int16_t promptWidth = u8g2.getUTF8Width(prompt);
     u8g2.drawUTF8((128 - promptWidth) / 2, 16, prompt);
   }
   u8g2.setFont(u8g2_font_logisoso32_tn);
   drawTimeCentered(buf, 50);
+  if (modeSelectionActive) {
+    u8g2.setFont(u8g2_font_5x7_tf);
+    const char* prompt = "VYBER REZIM";
+    int promptWidth = u8g2.getStrWidth(prompt);
+    u8g2.drawStr((128 - promptWidth) / 2, 63, prompt);
+  }
 }
 
 void drawRunningScreen() {
