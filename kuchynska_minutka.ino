@@ -345,8 +345,8 @@ ISR(PCINT2_vect) {
   encoderTransitionSum += transitionTable[tableIndex];
   encoderState = currentState;
 
-  // With pull-ups, both encoder contacts are HIGH at the detent position.
-  if (currentState == 0x03) {
+  // Some EC11 variants alternate detents between 00 and 11.
+  if (currentState == 0x00 || currentState == 0x03) {
     if (encoderTransitionSum >= 2 || encoderTransitionSum <= -2) {
       unsigned long now = micros();
       if (now - lastEncoderDetentMicros >= 2500UL) {
