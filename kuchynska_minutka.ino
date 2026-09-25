@@ -242,6 +242,9 @@ bool modeSelectionActive = true;
 unsigned long encoderPressStart = 0;
 bool startStopLongActionDone = false; // true = reset uz prebehol pocas tohto drzania
 
+void buttonBeep();
+void buttonBeep(unsigned long durationMs);
+
 // =========================================================
 //  SETUP
 // =========================================================
@@ -488,7 +491,11 @@ void wakeISR() {
   sleepWakeRequested = true;
 }
 
-void buttonBeep(unsigned long durationMs = BUTTON_BEEP_MS) {
+void buttonBeep() {
+  buttonBeep(BUTTON_BEEP_MS);
+}
+
+void buttonBeep(unsigned long durationMs) {
   digitalWrite(BUZZER_PIN, HIGH);
   beepUntil = millis() + durationMs;
 }
