@@ -72,6 +72,7 @@
 #include <EEPROM.h>
 #include <avr/sleep.h>
 #include <avr/power.h>
+#include <avr/interrupt.h>
 #include <stdio.h>
 
 // ---------- Piny ----------
@@ -87,7 +88,9 @@ U8G2_SSD1309_128X64_NONAME0_1_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 // ---------- Enkoder ----------
 Bounce bEncoderButton = Bounce();
 volatile int16_t encoderSteps = 0;
-volatile unsigned long lastEncoderEdgeMicros = 0;
+volatile int8_t encoderTransitionSum = 0;
+volatile uint8_t encoderState = 0;
+volatile unsigned long lastEncoderDetentMicros = 0;
 
 // ---------- Stavy a rezimy ----------
 enum TimerState : uint8_t { STATE_READY, STATE_RUNNING, STATE_PAUSED, STATE_ALARM };
@@ -249,7 +252,10 @@ void setup() {
 
   bEncoderButton.attach(ENCODER_SW_PIN);
   bEncoderButton.interval(20);
-  attachInterrupt(digitalPinToInterrupt(ENCODER_CLK_PIN), encoderISR, FALLING);
+  encoderState = (PIND >> 3) & 0x03;
+  PCIFR |= _BV(PCIF2);
+  PCMSK2 |= _BV(PCINT19) | _BV(PCINT20);
+  PCICR |= _BV(PCIE2);
 
   u8g2.begin();
 
@@ -329,11 +335,27 @@ void loop() {
   handleAutomaticSleep();
 }
 
-void encoderISR() {
-  unsigned long now = micros();
-  if (now - lastEncoderEdgeMicros < 1500UL) return;
-  lastEncoderEdgeMicros = now;
-  encoderSteps += digitalRead(ENCODER_DT_PIN) == HIGH ? 1 : -1;
+ISR(PCINT2_vect) {
+  static const int8_t transitionTable[16] = {
+    0, -1, 1, 0, 1, 0, 0, -1,
+    -1, 0, 0, 1, 0, 1, -1, 0
+  };
+  uint8_t currentState = (PIND >> 3) & 0x03;
+  uint8_t tableIndex = (encoderState << 2) | currentState;
+  encoderTransitionSum += transitionTable[tableIndex];
+  encoderState = currentState;
+
+  // With pull-ups, both encoder contacts are HIGH at the detent position.
+  if (currentState == 0x03) {
+    if (encoderTransitionSum >= 2 || encoderTransitionSum <= -2) {
+      unsigned long now = micros();
+      if (now - lastEncoderDetentMicros >= 2500UL) {
+        encoderSteps += encoderTransitionSum > 0 ? 1 : -1;
+        lastEncoderDetentMicros = now;
+      }
+    }
+    encoderTransitionSum = 0;
+  }
 }
 
 int16_t readEncoderDetents() {
@@ -478,7 +500,7 @@ void enterDeepSleep() {
   isDisplaySleeping = true;
   bEncoderButton.update();
 
-  detachInterrupt(digitalPinToInterrupt(ENCODER_CLK_PIN));
+  PCICR &= ~_BV(PCIE2);
   attachInterrupt(digitalPinToInterrupt(ENCODER_SW_PIN), wakeISR, FALLING);
 
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
@@ -490,7 +512,8 @@ void enterDeepSleep() {
   // sem sa dostaneme az po prebudeni
   sleep_disable();
   detachInterrupt(digitalPinToInterrupt(ENCODER_SW_PIN));
-  attachInterrupt(digitalPinToInterrupt(ENCODER_CLK_PIN), encoderISR, FALLING);
+  PCIFR |= _BV(PCIF2);
+  PCICR |= _BV(PCIE2);
 
   wakeDisplay();
   ignoreEncoderClickUntilRelease = true;
