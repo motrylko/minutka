@@ -199,9 +199,9 @@ const unsigned long BUTTON_BEEP_MS    = 150;
 const unsigned long ENCODER_BEEP_MS   = 20UL;
 const unsigned long READY_SLEEP_MS    = 30000UL;
 const unsigned long PAUSE_SLEEP_MS    = 600000UL;
-const unsigned long DIM_DELAY_MS      = 10000UL;
+const unsigned long DIM_DELAY_MS      = 60000UL;
 const unsigned long DIM_THRESHOLD_SECONDS = 600UL;
-const uint8_t DISPLAY_CONTRAST        = 1;
+const uint8_t DISPLAY_CONTRAST        = 255;
 const uint8_t DIMMED_CONTRAST         = 1;
 const unsigned long ANIM_STEP_MS      = 150;
 
@@ -438,9 +438,14 @@ void handleEncoderButton(bool pressed, bool released) {
         modeSelectionActive = false;
       }
     } else if (state == STATE_RUNNING) {
-      state = STATE_PAUSED;
-      pauseStartMillis = millis();
-      restoreDisplayBrightness();
+      if (totalSecondsAtStart > DIM_THRESHOLD_SECONDS && displayDimmed) {
+        restoreDisplayBrightness();
+        runningStartMillis = millis();
+      } else {
+        state = STATE_PAUSED;
+        pauseStartMillis = millis();
+        restoreDisplayBrightness();
+      }
     } else if (state == STATE_PAUSED) {
       lastSecondTick = millis();
       pauseStartMillis = 0;
@@ -455,6 +460,7 @@ void resetToPreset() {
   state = STATE_READY;
   remainingSeconds = presetSecondsFor(currentMode);
   modeSelectionActive = true;
+  restoreDisplayBrightness();
 }
 
 // Vrati cas (v sekundach), na ktory sa ma nastavit dany rezim - pre
@@ -547,6 +553,7 @@ void updateTimer() {
     lastSecondTick += 1000;
     if (remainingSeconds > 0) remainingSeconds--;
     if (remainingSeconds == 0) {
+      restoreDisplayBrightness();
       state = STATE_ALARM;
       alarmStartMillis = millis();
       lastAlarmToggle = alarmStartMillis;
