@@ -276,6 +276,10 @@ void loop() {
     wakeDisplay();
     isDisplaySleeping = false;
     ignoreEncoderClickUntilRelease = true;
+    state = STATE_READY;
+    currentMode = MODE_NONE;
+    remainingSeconds = 0;
+    modeSelectionActive = true;
     lastActivityMillis = millis();
     welcomeStartMillis = millis();
     welcomeActive = true;
@@ -325,7 +329,7 @@ void loop() {
   handleAutomaticSleep();
 }
 
-// Quadrature dekoder: jeden detent predstavuje styri platne prechody.
+// Quadrature dekoder: tento enkoder vytvara dva platne prechody na klik.
 uint8_t readEncoderState() {
   return (digitalRead(ENCODER_CLK_PIN) << 1) | digitalRead(ENCODER_DT_PIN);
 }
@@ -340,14 +344,14 @@ int8_t readEncoderDetents() {
   encoderQuarterSteps += transitionTable[tableIndex];
   previousEncoderState = currentState;
 
-  if (encoderQuarterSteps >= 4) {
-    int8_t detents = encoderQuarterSteps / 4;
-    encoderQuarterSteps %= 4;
+  if (encoderQuarterSteps >= 2) {
+    int8_t detents = encoderQuarterSteps / 2;
+    encoderQuarterSteps %= 2;
     return detents;
   }
-  if (encoderQuarterSteps <= -4) {
-    int8_t detents = encoderQuarterSteps / 4;
-    encoderQuarterSteps %= 4;
+  if (encoderQuarterSteps <= -2) {
+    int8_t detents = encoderQuarterSteps / 2;
+    encoderQuarterSteps %= 2;
     return detents;
   }
   return 0;
@@ -386,7 +390,7 @@ void handleEncoderButton(bool pressed, bool released) {
     lastActivityMillis = millis();
   }
 
-    if (bEncoderButton.read() == LOW && !ignoreEncoderClickUntilRelease &&
+  if (bEncoderButton.read() == LOW && !ignoreEncoderClickUntilRelease &&
       !startStopLongActionDone &&
       millis() - encoderPressStart >= RESET_HOLD_MS) {
     resetToPreset();
@@ -403,7 +407,7 @@ void handleEncoderButton(bool pressed, bool released) {
 
   if (!startStopLongActionDone) {
     if (state == STATE_READY) {
-      if (modeSelectionActive) {
+      if (modeSelectionActive && currentMode == MODE_NONE) {
         modeSelectionActive = false;
       } else if (remainingSeconds > 0) {
         totalSecondsAtStart = remainingSeconds;
@@ -413,6 +417,7 @@ void handleEncoderButton(bool pressed, bool released) {
         restoreDisplayBrightness();
         animFrame = 0;
         state = STATE_RUNNING;
+        modeSelectionActive = false;
       }
     } else if (state == STATE_RUNNING) {
       state = STATE_PAUSED;
@@ -708,19 +713,13 @@ void drawReadyScreen() {
   char buf[6];
   formatTime(remainingSeconds, buf);
   if (currentMode == MODE_NONE) {
-    const char* prompt = modeSelectionActive ? "Vyber rezim" : "Nastav čas";
+    const char* prompt = "Nastav čas";
     u8g2.setFont(MODE_FONT);
     int16_t promptWidth = u8g2.getUTF8Width(prompt);
     u8g2.drawUTF8((128 - promptWidth) / 2, 16, prompt);
   }
   u8g2.setFont(u8g2_font_logisoso32_tn);
   drawTimeCentered(buf, 50);
-  if (modeSelectionActive) {
-    u8g2.setFont(u8g2_font_5x7_tf);
-    const char* prompt = "VYBER REZIM";
-    int promptWidth = u8g2.getStrWidth(prompt);
-    u8g2.drawStr((128 - promptWidth) / 2, 63, prompt);
-  }
 }
 
 void drawRunningScreen() {
