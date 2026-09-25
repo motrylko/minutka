@@ -291,7 +291,7 @@ void loop() {
     welcomeStartMillis = millis();
     welcomeActive = true;
   }
-  if (encoderPressed) buttonBeep();
+  if (encoderPressed || encoderDetents != 0) buttonBeep();
   updateButtonBeep();
 
   // --- displej spi (ale MCU stale bezi a pocita) ---
@@ -687,7 +687,7 @@ void drawWelcomeScreen() {
     return;
   }
 
-  if (elapsed < 2000UL) {
+  if (elapsed < 4000UL) {
     u8g2.setFont(MODE_FONT);
 
     const char* line1 = "Ahoj,";
@@ -700,22 +700,7 @@ void drawWelcomeScreen() {
 
     u8g2.drawUTF8(x1, 20, line1);
     u8g2.drawUTF8(x2, 38, line2);
-    return;
   }
-
-  // iba jedno pohnutie oka, bez opakovania
-  u8g2.drawCircle(64, 32, 20);
-  u8g2.drawDisc(56, 27, 2);
-  u8g2.drawDisc(72, 27, 2);
-
-  if (elapsed < 2400UL) {
-    u8g2.drawLine(68, 27, 75, 27);
-  }
-
-  u8g2.drawLine(54, 40, 58, 43);
-  u8g2.drawLine(58, 43, 64, 45);
-  u8g2.drawLine(64, 45, 70, 43);
-  u8g2.drawLine(70, 43, 74, 40);
 }
 
 void drawReadyScreen() {
@@ -725,7 +710,7 @@ void drawReadyScreen() {
 
   char buf[6];
   formatTime(remainingSeconds, buf);
-  if (currentMode == MODE_NONE) {
+  if (currentMode == MODE_NONE && !modeSelectionActive) {
     const char* prompt = "Nastav čas";
     u8g2.setFont(MODE_FONT);
     int16_t promptWidth = u8g2.getUTF8Width(prompt);
