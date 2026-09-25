@@ -189,6 +189,7 @@ const uint8_t defaultPresetMinutes[MODE_COUNT] = { 5, 5, 10, 20, 30 };
 // ---------- Casove konstanty ----------
 // Reset podrzanim integrovaneho tlacidla enkodera.
 const uint16_t RESET_HOLD_MS        = 2000;
+const unsigned long ENCODER_DEBOUNCE_US = 8000UL;
 const uint8_t  MAX_MINUTES          = 99;
 const uint8_t  MIN_MINUTES          = 1;
 const unsigned long MAX_SECONDS = (unsigned long)MAX_MINUTES * 60UL;
@@ -349,7 +350,7 @@ ISR(PCINT2_vect) {
   if (currentState == 0x03) {
     if (encoderTransitionSum >= 4 || encoderTransitionSum <= -4) {
       unsigned long now = micros();
-      if (now - lastEncoderDetentMicros >= 2500UL) {
+      if (now - lastEncoderDetentMicros >= ENCODER_DEBOUNCE_US) {
         encoderSteps += encoderTransitionSum > 0 ? 1 : -1;
         lastEncoderDetentMicros = now;
       }
