@@ -678,6 +678,7 @@ void drawModeNameCentered(int16_t y, bool compact) {
 
 void drawScreen() {
   u8g2.firstPage();
+  bool morePages;
   do {
     if (welcomeActive) {
       drawWelcomeScreen();
@@ -688,7 +689,9 @@ void drawScreen() {
     } else {
       drawReadyScreen();
     }
-  } while (u8g2.nextPage());
+    morePages = u8g2.nextPage();
+    updateButtonBeep();
+  } while (morePages);
 }
 
 void drawWelcomeScreen() {
