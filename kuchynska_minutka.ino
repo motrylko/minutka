@@ -86,8 +86,8 @@ U8G2_SSD1309_128X64_NONAME0_1_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
 // ---------- Enkoder ----------
 Bounce bEncoderButton = Bounce();
-uint8_t previousEncoderState = 0;
-int8_t encoderQuarterSteps = 0;
+volatile int16_t encoderSteps = 0;
+volatile unsigned long lastEncoderEdgeMicros = 0;
 
 // ---------- Stavy a rezimy ----------
 enum TimerState : uint8_t { STATE_READY, STATE_RUNNING, STATE_PAUSED, STATE_ALARM };
@@ -249,7 +249,7 @@ void setup() {
 
   bEncoderButton.attach(ENCODER_SW_PIN);
   bEncoderButton.interval(20);
-  previousEncoderState = readEncoderState();
+  attachInterrupt(digitalPinToInterrupt(ENCODER_CLK_PIN), encoderISR, FALLING);
 
   u8g2.begin();
 
@@ -267,7 +267,7 @@ void setup() {
 // =========================================================
 void loop() {
   bEncoderButton.update();
-  int8_t encoderDetents = readEncoderDetents();
+  int16_t encoderDetents = readEncoderDetents();
   bool encoderPressed = bEncoderButton.fell();
   bool encoderReleased = bEncoderButton.rose();
   bool anyInput = encoderDetents != 0 || encoderPressed;
@@ -329,35 +329,22 @@ void loop() {
   handleAutomaticSleep();
 }
 
-// Quadrature dekoder: tento enkoder vytvara dva platne prechody na klik.
-uint8_t readEncoderState() {
-  return (digitalRead(ENCODER_CLK_PIN) << 1) | digitalRead(ENCODER_DT_PIN);
+void encoderISR() {
+  unsigned long now = micros();
+  if (now - lastEncoderEdgeMicros < 1500UL) return;
+  lastEncoderEdgeMicros = now;
+  encoderSteps += digitalRead(ENCODER_DT_PIN) == HIGH ? 1 : -1;
 }
 
-int8_t readEncoderDetents() {
-  static const int8_t transitionTable[16] = {
-    0, -1, 1, 0, 1, 0, 0, -1,
-    -1, 0, 0, 1, 0, 1, -1, 0
-  };
-  uint8_t currentState = readEncoderState();
-  uint8_t tableIndex = (previousEncoderState << 2) | currentState;
-  encoderQuarterSteps += transitionTable[tableIndex];
-  previousEncoderState = currentState;
-
-  if (encoderQuarterSteps >= 2) {
-    int8_t detents = encoderQuarterSteps / 2;
-    encoderQuarterSteps %= 2;
-    return detents;
-  }
-  if (encoderQuarterSteps <= -2) {
-    int8_t detents = encoderQuarterSteps / 2;
-    encoderQuarterSteps %= 2;
-    return detents;
-  }
-  return 0;
+int16_t readEncoderDetents() {
+  noInterrupts();
+  int16_t detents = encoderSteps;
+  encoderSteps = 0;
+  interrupts();
+  return detents;
 }
 
-void handleEncoderRotation(int8_t detents) {
+void handleEncoderRotation(int16_t detents) {
   if (detents == 0 || state != STATE_READY) return;
   lastActivityMillis = millis();
 
@@ -491,6 +478,7 @@ void enterDeepSleep() {
   isDisplaySleeping = true;
   bEncoderButton.update();
 
+  detachInterrupt(digitalPinToInterrupt(ENCODER_CLK_PIN));
   attachInterrupt(digitalPinToInterrupt(ENCODER_SW_PIN), wakeISR, FALLING);
 
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
@@ -502,6 +490,7 @@ void enterDeepSleep() {
   // sem sa dostaneme az po prebudeni
   sleep_disable();
   detachInterrupt(digitalPinToInterrupt(ENCODER_SW_PIN));
+  attachInterrupt(digitalPinToInterrupt(ENCODER_CLK_PIN), encoderISR, FALLING);
 
   wakeDisplay();
   ignoreEncoderClickUntilRelease = true;
