@@ -196,6 +196,7 @@ const unsigned long MAX_SECONDS = (unsigned long)MAX_MINUTES * 60UL;
 const unsigned long ALARM_AUTO_OFF_MS = 60000UL;  // alarm pipa 1 minutu
 const unsigned long ALARM_PERIOD_MS   = 200;       // preryvavy ton - perioda 200 ms (aktivny buzzer)
 const unsigned long BUTTON_BEEP_MS    = 150;
+const unsigned long ENCODER_BEEP_MS   = BUTTON_BEEP_MS * 60UL / 100UL;
 const unsigned long READY_SLEEP_MS    = 30000UL;
 const unsigned long PAUSE_SLEEP_MS    = 600000UL;
 const unsigned long DIM_DELAY_MS      = 10000UL;
@@ -291,7 +292,11 @@ void loop() {
     welcomeStartMillis = millis();
     welcomeActive = true;
   }
-  if (encoderPressed || encoderDetents != 0) buttonBeep();
+  if (encoderPressed) {
+    buttonBeep();
+  } else if (encoderDetents != 0) {
+    buttonBeep(ENCODER_BEEP_MS);
+  }
   updateButtonBeep();
 
   // --- displej spi (ale MCU stale bezi a pocita) ---
@@ -483,9 +488,9 @@ void wakeISR() {
   sleepWakeRequested = true;
 }
 
-void buttonBeep() {
+void buttonBeep(unsigned long durationMs = BUTTON_BEEP_MS) {
   digitalWrite(BUZZER_PIN, HIGH);
-  beepUntil = millis() + BUTTON_BEEP_MS;
+  beepUntil = millis() + durationMs;
 }
 
 void updateButtonBeep() {
