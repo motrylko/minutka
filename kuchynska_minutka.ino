@@ -481,14 +481,9 @@ void handleEncoderButton(bool pressed, bool released) {
         modeSelectionActive = false;
       }
     } else if (state == STATE_RUNNING) {
-      if (displayDimmed) {
-        restoreDisplayBrightness();
-        runningStartMillis = millis();
-      } else {
-        state = STATE_PAUSED;
-        pauseStartMillis = millis();
-        restoreDisplayBrightness();
-      }
+      state = STATE_PAUSED;
+      pauseStartMillis = millis();
+      restoreDisplayBrightness();
     } else if (state == STATE_PAUSED) {
       lastSecondTick = millis();
       pauseStartMillis = 0;
