@@ -5,7 +5,7 @@
 
   HARDVER:
    - OLED displej SSD1309 128x64, I2C
-       VCC -> 5V (alebo 3.3V podla modulu)
+       VCC -> spinane napajanie cez IRF7328; riadenie gate z D7
        GND -> GND
        SDA -> A4
        SCL -> A5
@@ -83,6 +83,7 @@
 #define ENCODER_DT_PIN  4
 #define ENCODER_SW_PIN  2
 #define BUZZER_PIN      9
+#define DISPLAY_POWER_PIN 7  // HIGH = displej vypnuty, LOW = zapnuty
 #define BATTERY_SENSE_PIN A0
 
 // ---------- Displej ----------
@@ -207,6 +208,7 @@ const unsigned long DIM_DELAY_MS      = 60000UL;
 const unsigned long DIM_THRESHOLD_SECONDS = 600UL;
 const uint8_t DISPLAY_CONTRAST        = 255;
 const uint8_t DIMMED_CONTRAST         = 1;
+const uint16_t DISPLAY_POWER_STARTUP_MS = 100;
 const unsigned long BATTERY_SAMPLE_INTERVAL_MS = 1000UL;
 const unsigned long ANIM_STEP_MS      = 150;
 
@@ -257,6 +259,8 @@ void buttonBeep(unsigned long durationMs);
 //  SETUP
 // =========================================================
 void setup() {
+  digitalWrite(DISPLAY_POWER_PIN, HIGH);
+  pinMode(DISPLAY_POWER_PIN, OUTPUT);
   pinMode(ENCODER_CLK_PIN, INPUT_PULLUP);
   pinMode(ENCODER_DT_PIN, INPUT_PULLUP);
   pinMode(ENCODER_SW_PIN, INPUT_PULLUP);
@@ -271,6 +275,8 @@ void setup() {
   PCMSK2 |= _BV(PCINT19) | _BV(PCINT20);
   PCICR |= _BV(PCIE2);
 
+  digitalWrite(DISPLAY_POWER_PIN, LOW);
+  delay(DISPLAY_POWER_STARTUP_MS);
   u8g2.begin();
 
   loadSettings(); // vzdy nastavi currentMode = MODE_NONE (standardna minutka)
@@ -498,6 +504,11 @@ unsigned long presetSecondsFor(uint8_t mode) {
 }
 
 void wakeDisplay() {
+  if (isDisplaySleeping) {
+    digitalWrite(DISPLAY_POWER_PIN, LOW);
+    delay(DISPLAY_POWER_STARTUP_MS);
+    u8g2.begin();
+  }
   u8g2.setPowerSave(0);
   restoreDisplayBrightness();
   isDisplaySleeping = false;
@@ -539,6 +550,7 @@ void updateButtonBeep() {
 void enterDeepSleep() {
   restoreDisplayBrightness();
   u8g2.setPowerSave(1);
+  digitalWrite(DISPLAY_POWER_PIN, HIGH);
   isDisplaySleeping = true;
   bEncoderButton.update();
 
