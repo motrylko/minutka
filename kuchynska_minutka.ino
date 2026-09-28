@@ -970,19 +970,37 @@ void drawSteamPotAnimation(int16_t cx, int16_t baseY, uint8_t phaseOffset, bool 
 }
 
 void drawHotDogIcon(int16_t cx, int16_t baseY) {
+  for (uint8_t i = 0; i < 3; i++) {
+    int16_t steamX = cx - 12 + i * 12;
+    uint8_t phase = (animFrame * 2 + i * 6) % 12;
+    int16_t steamY = baseY - 20 - phase / 6;
+    int8_t wiggle = ((phase / 3) % 2 == 0) ? -1 : 1;
+    u8g2.drawLine(steamX, steamY, steamX + wiggle, steamY - 2);
+    u8g2.drawLine(steamX + wiggle, steamY - 2, steamX, steamY - 4);
+  }
+
   u8g2.setDrawColor(1);
-  u8g2.drawRBox(cx - 30, baseY - 19, 60, 19, 9);
+  u8g2.drawRBox(cx - 30, baseY - 19, 60, 20, 10);
 
   u8g2.setDrawColor(0);
-  u8g2.drawRBox(cx - 35, baseY - 13, 70, 10, 5);
+  u8g2.drawRBox(cx - 35, baseY - 15, 70, 10, 5);
 
   const int8_t sauceY[13] = { -2, 1, -2, 1, -2, 1, -2, 1, -2, 1, -2, 1, -2 };
   for (uint8_t i = 0; i < 12; i++) {
     int16_t x1 = cx - 30 + i * 5;
     int16_t x2 = x1 + 5;
+    int16_t y1 = baseY - 12 + sauceY[i];
+    int16_t y2 = baseY - 12 + sauceY[i + 1];
     u8g2.setDrawColor(1);
-    u8g2.drawLine(x1, baseY - 9 + sauceY[i], x2, baseY - 9 + sauceY[i + 1]);
+    u8g2.drawLine(x1, y1, x2, y2);
+    u8g2.drawLine(x1, y1 + 3, x2, y2 + 3);
   }
+  u8g2.drawLine(cx - 30, baseY - 12 + sauceY[0],
+                cx - 30, baseY - 9 + sauceY[0]);
+  u8g2.drawLine(cx + 30, baseY - 12 + sauceY[12],
+                cx + 30, baseY - 9 + sauceY[12]);
+
+  u8g2.drawRFrame(cx - 35, baseY - 15, 70, 10, 5);
   u8g2.setDrawColor(1);
 }
 
