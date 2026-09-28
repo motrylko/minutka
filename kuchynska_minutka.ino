@@ -975,7 +975,10 @@ void drawHotDogIcon(int16_t cx, int16_t baseY) {
 
   u8g2.setDrawColor(0);
   u8g2.drawEllipse(cx, bunY, 30, 10, U8G2_DRAW_ALL);
+  u8g2.setDrawColor(1);
   u8g2.drawFilledEllipse(cx, baseY - 10, 35, 5, U8G2_DRAW_ALL);
+  u8g2.setDrawColor(0);
+  u8g2.drawEllipse(cx, baseY - 10, 35, 5, U8G2_DRAW_ALL);
 
   const int8_t sauceY[11] = { -2, 1, -2, 1, -2, 1, -2, 1, -2, 1, -2 };
   for (uint8_t i = 0; i < 10; i++) {
