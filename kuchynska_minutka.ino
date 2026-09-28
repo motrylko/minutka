@@ -980,7 +980,7 @@ void drawHotDogIcon(int16_t cx, int16_t baseY) {
   }
 
   u8g2.setDrawColor(1);
-  u8g2.drawRBox(cx - 30, baseY - 19, 60, 19, 9);
+  u8g2.drawRBox(cx - 30, baseY - 16, 60, 18, 9);
 
   u8g2.setDrawColor(0);
   u8g2.drawRBox(cx - 35, baseY - 12, 70, 10, 5);
