@@ -849,7 +849,7 @@ void drawRunningScreen() {
       drawEggPotAnimation(animCx, 63);
       break;
     case MODE_HOT_DOG:
-      drawHotDogIcon(animCx, 63);
+      drawHotDogIcon(animCx, 62);
       break;
     case MODE_PIZZA:
       drawSteamAnimation(animCx, 63, true);
