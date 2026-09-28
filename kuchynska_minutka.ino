@@ -975,7 +975,7 @@ void drawHotDogIcon(int16_t cx, int16_t baseY) {
 
   u8g2.setDrawColor(0);
   u8g2.drawEllipse(cx, bunY, 30, 10, U8G2_DRAW_ALL);
-  u8g2.drawFilledEllipse(cx, baseY - 10, 26, 5, U8G2_DRAW_ALL);
+  u8g2.drawFilledEllipse(cx, baseY - 10, 35, 5, U8G2_DRAW_ALL);
 
   const int8_t sauceY[11] = { -2, 1, -2, 1, -2, 1, -2, 1, -2, 1, -2 };
   for (uint8_t i = 0; i < 10; i++) {
@@ -986,11 +986,6 @@ void drawHotDogIcon(int16_t cx, int16_t baseY) {
     u8g2.setDrawColor(0);
   }
 
-  const int8_t seedX[6] = { -21, -13, -5, 4, 13, 21 };
-  const int8_t seedY[6] = { -16, -18, -16, -18, -16, -18 };
-  for (uint8_t i = 0; i < 6; i++) {
-    u8g2.drawPixel(cx + seedX[i], baseY + seedY[i]);
-  }
   u8g2.setDrawColor(1);
 }
 
