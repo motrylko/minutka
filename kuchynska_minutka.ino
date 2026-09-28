@@ -206,11 +206,14 @@ const unsigned long ENCODER_BEEP_MS   = 20UL;
 const unsigned long READY_SLEEP_MS    = 30000UL;
 const unsigned long PAUSE_SLEEP_MS    = 600000UL;
 const unsigned long DIM_DELAY_MS      = 60000UL;
-const unsigned long DIM_THRESHOLD_SECONDS = 600UL;
 const uint8_t DISPLAY_CONTRAST        = 255;
 const uint8_t DIMMED_CONTRAST         = 1;
 const uint16_t DISPLAY_POWER_STARTUP_MS = 100;
 const unsigned long BATTERY_SAMPLE_INTERVAL_MS = 1000UL;
+const uint16_t LOW_BATTERY_THRESHOLD_MV = 3600;
+const unsigned long LOW_BATTERY_INTERVAL_MS = 60000UL;
+const unsigned long LOW_BATTERY_MESSAGE_MS = 1000UL;
+const unsigned long LOW_BATTERY_BEEP_MS = 700UL;
 const unsigned long ANIM_STEP_MS      = 150;
 
 // ---------- EEPROM adresy ----------
@@ -250,6 +253,11 @@ unsigned long lastAnimStep = 0;
 uint16_t batteryMillivolts = 0;
 unsigned long lastBatterySampleMillis = 0;
 bool batterySampled = false;
+bool lowBatteryTiming = false;
+bool lowBatteryWarningActive = false;
+bool lowBatteryBeepActive = false;
+unsigned long lastLowBatteryWarningMillis = 0;
+unsigned long lowBatteryWarningStartMillis = 0;
 
 bool modeSelectionActive = true;
 unsigned long encoderPressStart = 0;
@@ -344,6 +352,7 @@ void loop() {
       welcomeActive = true;
     }
     updateTimer();
+    handleLowBatteryWarning();
     handleAutomaticDimming();
     if (state == STATE_ALARM) {
       wakeDisplay();
@@ -362,6 +371,7 @@ void loop() {
       handleAlarmSound();
     }
     updateTimer();
+    handleLowBatteryWarning();
     drawScreen();
     return;
   }
@@ -370,6 +380,7 @@ void loop() {
   handleEncoderButton(encoderPressed, encoderReleased);
 
   updateTimer();
+  handleLowBatteryWarning();
   updateAnimation();
   handleAutomaticDimming();
   drawScreen();
@@ -470,7 +481,7 @@ void handleEncoderButton(bool pressed, bool released) {
         modeSelectionActive = false;
       }
     } else if (state == STATE_RUNNING) {
-      if (totalSecondsAtStart > DIM_THRESHOLD_SECONDS && displayDimmed) {
+      if (displayDimmed) {
         restoreDisplayBrightness();
         runningStartMillis = millis();
       } else {
@@ -523,10 +534,56 @@ void restoreDisplayBrightness() {
 }
 
 void handleAutomaticDimming() {
-  if (state == STATE_RUNNING && totalSecondsAtStart > DIM_THRESHOLD_SECONDS &&
+  if (state == STATE_RUNNING && !lowBatteryWarningActive &&
       !displayDimmed && millis() - runningStartMillis >= DIM_DELAY_MS) {
     u8g2.setContrast(DIMMED_CONTRAST);
     displayDimmed = true;
+  }
+}
+
+void handleLowBatteryWarning() {
+  unsigned long now = millis();
+
+  if (isDisplaySleeping || state == STATE_ALARM) {
+    lowBatteryWarningActive = false;
+    if (lowBatteryBeepActive) {
+      digitalWrite(BUZZER_PIN, LOW);
+      beepUntil = 0;
+      lowBatteryBeepActive = false;
+    }
+    return;
+  }
+
+  if (!batterySampled || batteryMillivolts >= LOW_BATTERY_THRESHOLD_MV) {
+    lowBatteryTiming = false;
+    lowBatteryWarningActive = false;
+    if (lowBatteryBeepActive) {
+      digitalWrite(BUZZER_PIN, LOW);
+      beepUntil = 0;
+      lowBatteryBeepActive = false;
+    }
+    return;
+  }
+
+  if (!lowBatteryTiming) {
+    lowBatteryTiming = true;
+    lastLowBatteryWarningMillis = now;
+  }
+
+  if (lowBatteryWarningActive && now - lowBatteryWarningStartMillis >= LOW_BATTERY_MESSAGE_MS) {
+    lowBatteryWarningActive = false;
+  }
+  if (lowBatteryBeepActive && now >= beepUntil) {
+    lowBatteryBeepActive = false;
+  }
+
+  if (!lowBatteryWarningActive && now - lastLowBatteryWarningMillis >= LOW_BATTERY_INTERVAL_MS) {
+    lastLowBatteryWarningMillis = now;
+    lowBatteryWarningStartMillis = now;
+    lowBatteryWarningActive = true;
+    restoreDisplayBrightness();
+    buttonBeep(LOW_BATTERY_BEEP_MS);
+    lowBatteryBeepActive = true;
   }
 }
 
@@ -727,10 +784,12 @@ void drawScreen() {
   u8g2.firstPage();
   bool morePages;
   do {
-    if (welcomeActive) {
-      drawWelcomeScreen();
-    } else if (state == STATE_ALARM) {
+    if (state == STATE_ALARM) {
       drawAlarmScreen();
+    } else if (lowBatteryWarningActive) {
+      drawLowBatteryWarningScreen();
+    } else if (welcomeActive) {
+      drawWelcomeScreen();
     } else if (state == STATE_RUNNING || state == STATE_PAUSED) {
       drawRunningScreen();
     } else {
@@ -739,6 +798,13 @@ void drawScreen() {
     morePages = u8g2.nextPage();
     updateButtonBeep();
   } while (morePages);
+}
+
+void drawLowBatteryWarningScreen() {
+  const char* message = "Batéria vybitá";
+  u8g2.setFont(MODE_FONT);
+  int16_t messageWidth = u8g2.getUTF8Width(message);
+  u8g2.drawUTF8((128 - messageWidth) / 2, 36, message);
 }
 
 void drawWelcomeScreen() {
