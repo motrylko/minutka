@@ -983,24 +983,19 @@ void drawHotDogIcon(int16_t cx, int16_t baseY) {
   u8g2.drawRBox(cx - 30, baseY - 19, 60, 20, 10);
 
   u8g2.setDrawColor(0);
-  u8g2.drawRBox(cx - 35, baseY - 15, 70, 10, 5);
+  u8g2.drawRBox(cx - 35, baseY - 12, 70, 10, 5);
 
-  const int8_t sauceY[13] = { -2, 1, -2, 1, -2, 1, -2, 1, -2, 1, -2, 1, -2 };
+  const int8_t sauceY[13] = { -2, 3, -2, 3, -2, 3, -2, 3, -2, 3, -2, 3, -2 };
   for (uint8_t i = 0; i < 12; i++) {
     int16_t x1 = cx - 30 + i * 5;
     int16_t x2 = x1 + 5;
-    int16_t y1 = baseY - 12 + sauceY[i];
-    int16_t y2 = baseY - 12 + sauceY[i + 1];
+    int16_t y1 = baseY - 8 + sauceY[i];
+    int16_t y2 = baseY - 8 + sauceY[i + 1];
     u8g2.setDrawColor(1);
     u8g2.drawLine(x1, y1, x2, y2);
-    u8g2.drawLine(x1, y1 + 3, x2, y2 + 3);
   }
-  u8g2.drawLine(cx - 30, baseY - 12 + sauceY[0],
-                cx - 30, baseY - 9 + sauceY[0]);
-  u8g2.drawLine(cx + 30, baseY - 12 + sauceY[12],
-                cx + 30, baseY - 9 + sauceY[12]);
 
-  u8g2.drawRFrame(cx - 35, baseY - 15, 70, 10, 5);
+  u8g2.drawRFrame(cx - 35, baseY - 12, 70, 10, 5);
   u8g2.setDrawColor(1);
 }
 
