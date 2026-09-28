@@ -212,7 +212,7 @@ const uint16_t DISPLAY_POWER_STARTUP_MS = 100;
 const unsigned long BATTERY_SAMPLE_INTERVAL_MS = 1000UL;
 const uint16_t LOW_BATTERY_THRESHOLD_MV = 3600;
 const unsigned long LOW_BATTERY_INTERVAL_MS = 60000UL;
-const unsigned long LOW_BATTERY_MESSAGE_MS = 1000UL;
+const unsigned long LOW_BATTERY_MESSAGE_MS = 2000UL;
 const unsigned long LOW_BATTERY_BEEP_MS = 700UL;
 const unsigned long ANIM_STEP_MS      = 150;
 
@@ -644,17 +644,21 @@ void updateTimer() {
   if (state != STATE_RUNNING) return;
 
   unsigned long now = millis();
-  if (now - lastSecondTick >= 1000) {
-    lastSecondTick += 1000;
-    if (remainingSeconds > 0) remainingSeconds--;
-    if (remainingSeconds == 0) {
-      restoreDisplayBrightness();
-      state = STATE_ALARM;
-      alarmStartMillis = millis();
-      lastAlarmToggle = alarmStartMillis;
-      alarmToneOn = false;
-    }
+  unsigned long elapsedSeconds = (now - lastSecondTick) / 1000UL;
+  if (elapsedSeconds == 0) return;
+
+  lastSecondTick += elapsedSeconds * 1000UL;
+  if (elapsedSeconds < remainingSeconds) {
+    remainingSeconds -= elapsedSeconds;
+    return;
   }
+
+  remainingSeconds = 0;
+  restoreDisplayBrightness();
+  state = STATE_ALARM;
+  alarmStartMillis = now;
+  lastAlarmToggle = alarmStartMillis;
+  alarmToneOn = false;
 }
 
 // =========================================================
