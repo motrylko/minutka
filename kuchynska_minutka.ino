@@ -60,7 +60,8 @@
    - vajicko mekke/tvrde -> nizky hrniec s vodou, 3 vajicka a
                        uskami (drzadlami) po strane, z vody stupa
                        para
-   - knedlik / pizza -> povodna animacia s parou
+  - hot-dog -> ikona hot-dogu s omackou
+  - pizza -> povodna animacia s parou
 
   POZNAMKA: Ak displej po nahrati zostane prazdny alebo bliká
   nezmyselne, skus zmenit konstruktor nizsie z NONAME0 na NONAME2
@@ -100,14 +101,14 @@ volatile unsigned long lastEncoderDetentMicros = 0;
 // ---------- Stavy a rezimy ----------
 enum TimerState : uint8_t { STATE_READY, STATE_RUNNING, STATE_PAUSED, STATE_ALARM };
 // MODE_NONE = standardna minutka bez nazvu, vzdy aktivna po zapnuti
-enum TimerMode  : uint8_t { MODE_NONE, MODE_EGG_SOFT, MODE_EGG_HARD, MODE_DUMPLING, MODE_PIZZA, MODE_COUNT };
+enum TimerMode  : uint8_t { MODE_NONE, MODE_EGG_SOFT, MODE_EGG_HARD, MODE_HOT_DOG, MODE_PIZZA, MODE_COUNT };
 
 // Prazdny nazov pre MODE_NONE - v UI sa jednoducho nezobrazi ziadny text.
 // Retazce su v UTF-8 (Arduino IDE uklada .ino subory v UTF-8) a vykreslujú
 // sa cez u8g2.drawUTF8()/getUTF8Width(), NIE cez drawStr()/getStrWidth(),
 // lebo tie neviem dekodovat viacbajtove UTF-8 znaky.
-const char* modeNames[MODE_COUNT] = { "", "Vajíčko na mäkko", "Vajíčko na tvrdo", "Knedlík", "Pizza" };
-const char* modeDisplayNames[MODE_COUNT] = { "", "Vajicko na makko", "Vajicko na tvrdo", "Knedlik", "Pizza" };
+const char* modeNames[MODE_COUNT] = { "", "Vajíčko na mäkko", "Vajíčko na tvrdo", "Hot-dog", "Pizza" };
+const char* modeDisplayNames[MODE_COUNT] = { "", "Vajicko na makko", "Vajicko na tvrdo", "Hot-dog", "Pizza" };
 
 // ---------- Vlastny font pre nazvy rezimov (slovenska diakritika) ----------
 // Povodny u8g2_font_unifont_t_polish obsahoval LEN polske znaky a
@@ -189,7 +190,7 @@ const uint8_t u8g2_font_unifont_t_slovak[1805] U8G2_FONT_SECTION("u8g2_font_unif
 #define MODE_FONT u8g2_font_unifont_t_slovak
 
 // Predvolene casy zapisane do EEPROM pri prvom spusteni.
-const uint8_t defaultPresetMinutes[MODE_COUNT] = { 5, 5, 10, 20, 30 };
+const uint8_t defaultPresetMinutes[MODE_COUNT] = { 5, 5, 10, 7, 30 };
 
 // ---------- Casove konstanty ----------
 // Reset podrzanim integrovaneho tlacidla enkodera.
@@ -216,6 +217,8 @@ const unsigned long ANIM_STEP_MS      = 150;
 #define EE_MAGIC_ADDR    0
 #define EE_MAGIC_VAL     0xA5
 #define EE_PRESET_ADDR   1                         // MODE_COUNT bajtov
+#define EE_PRESET_VERSION_ADDR (EE_PRESET_ADDR + MODE_COUNT)
+#define EE_PRESET_VERSION_VAL  0x01
 
 // ---------- Globalny stav ----------
 uint8_t presetMinutes[MODE_COUNT];
@@ -664,6 +667,11 @@ void loadSettings() {
       presetMinutes[i] = (val >= MIN_MINUTES && val <= MAX_MINUTES) ? val : defaultPresetMinutes[i];
     }
   }
+  if (EEPROM.read(EE_PRESET_VERSION_ADDR) != EE_PRESET_VERSION_VAL) {
+    presetMinutes[MODE_HOT_DOG] = defaultPresetMinutes[MODE_HOT_DOG];
+    EEPROM.update(EE_PRESET_ADDR + MODE_HOT_DOG, presetMinutes[MODE_HOT_DOG]);
+    EEPROM.update(EE_PRESET_VERSION_ADDR, EE_PRESET_VERSION_VAL);
+  }
   // Po zapnuti je vzdy aktivna standardna minutka bez nazvu rezimu
   currentMode = MODE_NONE;
 }
@@ -709,9 +717,6 @@ void drawModeNameCentered(int16_t y, bool compact) {
         u8g2.drawPixel(aX + 1, accentY - 1);
         u8g2.drawPixel(aX + 3, accentY - 1);
       }
-    } else if (currentMode == MODE_DUMPLING) {
-      int16_t iX = x + 5 * 6;
-      u8g2.drawLine(iX + 1, accentY, iX + 3, accentY - 2);
     }
   } else {
     u8g2.drawUTF8(x, y, name);
@@ -843,8 +848,8 @@ void drawRunningScreen() {
     case MODE_EGG_HARD:
       drawEggPotAnimation(animCx, 63);
       break;
-    case MODE_DUMPLING:
-      drawSteamAnimation(animCx, 63, false);
+    case MODE_HOT_DOG:
+      drawHotDogIcon(animCx, 63);
       break;
     case MODE_PIZZA:
       drawSteamAnimation(animCx, 63, true);
@@ -964,7 +969,32 @@ void drawSteamPotAnimation(int16_t cx, int16_t baseY, uint8_t phaseOffset, bool 
   u8g2.drawLine(sx + wig, sy - 4, sx, sy - 8);
 }
 
-// Knedlik / pizza so stupajucou parou (loop)
+void drawHotDogIcon(int16_t cx, int16_t baseY) {
+  const int16_t bunY = baseY - 11;
+  u8g2.drawFilledEllipse(cx, bunY, 30, 10, U8G2_DRAW_ALL);
+
+  u8g2.setDrawColor(0);
+  u8g2.drawEllipse(cx, bunY, 30, 10, U8G2_DRAW_ALL);
+  u8g2.drawFilledEllipse(cx, baseY - 10, 26, 5, U8G2_DRAW_ALL);
+
+  const int8_t sauceY[11] = { -2, 1, -2, 1, -2, 1, -2, 1, -2, 1, -2 };
+  for (uint8_t i = 0; i < 10; i++) {
+    int16_t x1 = cx - 20 + i * 4;
+    int16_t x2 = x1 + 4;
+    u8g2.setDrawColor(1);
+    u8g2.drawLine(x1, baseY - 10 + sauceY[i], x2, baseY - 10 + sauceY[i + 1]);
+    u8g2.setDrawColor(0);
+  }
+
+  const int8_t seedX[6] = { -21, -13, -5, 4, 13, 21 };
+  const int8_t seedY[6] = { -16, -18, -16, -18, -16, -18 };
+  for (uint8_t i = 0; i < 6; i++) {
+    u8g2.drawPixel(cx + seedX[i], baseY + seedY[i]);
+  }
+  u8g2.setDrawColor(1);
+}
+
+// Pizza s parou stupa ako povodna animacia (loop).
 void drawSteamAnimation(int16_t cx, int16_t baseY, bool isPizza) {
   if (isPizza) {
     // -------------------------------------------------------
