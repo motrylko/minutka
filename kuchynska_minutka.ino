@@ -276,6 +276,7 @@ void setup() {
   pinMode(ENCODER_DT_PIN, INPUT_PULLUP);
   pinMode(ENCODER_SW_PIN, INPUT_PULLUP);
   pinMode(BATTERY_SENSE_PIN, INPUT);
+  DIDR0 |= _BV(ADC0D) | _BV(ADC1D) | _BV(ADC2D) | _BV(ADC3D);
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
 
@@ -612,15 +613,41 @@ void enterDeepSleep() {
   PCICR &= ~_BV(PCIE2);
   attachInterrupt(digitalPinToInterrupt(ENCODER_SW_PIN), wakeISR, FALLING);
 
+  pinMode(ENCODER_CLK_PIN, INPUT);
+  digitalWrite(ENCODER_CLK_PIN, LOW);
+  pinMode(ENCODER_DT_PIN, INPUT);
+  digitalWrite(ENCODER_DT_PIN, LOW);
+  pinMode(A4, INPUT);
+  digitalWrite(A4, LOW);
+  pinMode(A5, INPUT);
+  digitalWrite(A5, LOW);
+  for (uint8_t pin = 5; pin <= 13; pin++) {
+    if (pin != DISPLAY_POWER_PIN && pin != BUZZER_PIN) {
+      digitalWrite(pin, LOW);
+      pinMode(pin, OUTPUT);
+    }
+  }
+  ADCSRA &= ~_BV(ADEN);
+  power_all_disable();
+
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
   noInterrupts();
   sleep_enable();
+  sleep_bod_disable();
   interrupts();
   sleep_cpu();               // <-- MCU tu naozaj zastavi
 
   // sem sa dostaneme az po prebudeni
   sleep_disable();
+  power_all_enable();
+  ADCSRA |= _BV(ADEN);
+  pinMode(ENCODER_CLK_PIN, INPUT_PULLUP);
+  pinMode(ENCODER_DT_PIN, INPUT_PULLUP);
+  pinMode(A4, INPUT);
+  pinMode(A5, INPUT);
   detachInterrupt(digitalPinToInterrupt(ENCODER_SW_PIN));
+  encoderState = (PIND >> 3) & 0x03;
+  encoderTransitionSum = 0;
   PCIFR |= _BV(PCIF2);
   PCICR |= _BV(PCIE2);
 
