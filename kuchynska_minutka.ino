@@ -93,6 +93,8 @@ U8G2_SSD1309_128X64_NONAME0_1_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
 // ---------- Enkoder ----------
 Bounce bEncoderButton = Bounce();
+bool encoderPressEventPending = false;
+bool encoderReleaseEventPending = false;
 volatile int16_t encoderSteps = 0;
 volatile int8_t encoderTransitionSum = 0;
 volatile uint8_t encoderState = 0;
@@ -290,6 +292,7 @@ void setup() {
   digitalWrite(DISPLAY_POWER_PIN, LOW);
   delay(DISPLAY_POWER_STARTUP_MS);
   u8g2.begin();
+  Wire.setClock(400000UL);
 
   loadSettings(); // vzdy nastavi currentMode = MODE_NONE (standardna minutka)
 
@@ -316,12 +319,20 @@ void updateBatteryVoltage() {
 // =========================================================
 //  HLAVNA SLUCKA
 // =========================================================
-void loop() {
+void pollEncoderButton() {
   bEncoderButton.update();
+  if (bEncoderButton.fell()) encoderPressEventPending = true;
+  if (bEncoderButton.rose()) encoderReleaseEventPending = true;
+}
+
+void loop() {
+  pollEncoderButton();
   updateBatteryVoltage();
   int16_t encoderDetents = readEncoderDetents();
-  bool encoderPressed = bEncoderButton.fell();
-  bool encoderReleased = bEncoderButton.rose();
+  bool encoderPressed = encoderPressEventPending;
+  bool encoderReleased = encoderReleaseEventPending;
+  encoderPressEventPending = false;
+  encoderReleaseEventPending = false;
   bool anyInput = encoderDetents != 0 || encoderPressed;
   if (sleepWakeRequested) {
     sleepWakeRequested = false;
@@ -518,6 +529,7 @@ void wakeDisplay() {
     digitalWrite(DISPLAY_POWER_PIN, LOW);
     delay(DISPLAY_POWER_STARTUP_MS);
     u8g2.begin();
+    Wire.setClock(400000UL);
   }
   u8g2.setPowerSave(0);
   restoreDisplayBrightness();
@@ -822,6 +834,7 @@ void drawScreen() {
       drawReadyScreen();
     }
     morePages = u8g2.nextPage();
+    pollEncoderButton();
     updateButtonBeep();
   } while (morePages);
 }
