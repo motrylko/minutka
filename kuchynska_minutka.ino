@@ -340,6 +340,11 @@ void loop() {
     sleepWakeRequested = false;
     wakeDisplay();
     isDisplaySleeping = false;
+    state = STATE_READY;
+    currentMode = MODE_NONE;
+    remainingSeconds = 0;
+    modeSelectionActive = true;
+    pauseStartMillis = 0;
     lastActivityMillis = millis();
     welcomeStartMillis = millis();
     welcomeActive = true;
