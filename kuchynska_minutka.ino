@@ -95,6 +95,7 @@ U8G2_SSD1309_128X64_NONAME0_1_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 Bounce bEncoderButton = Bounce();
 bool encoderPressEventPending = false;
 bool encoderReleaseEventPending = false;
+bool encoderPressTracking = false;
 volatile int16_t encoderSteps = 0;
 volatile int8_t encoderTransitionSum = 0;
 volatile uint8_t encoderState = 0;
@@ -339,19 +340,16 @@ void loop() {
     sleepWakeRequested = false;
     wakeDisplay();
     isDisplaySleeping = false;
-    ignoreEncoderClickUntilRelease = true;
-    state = STATE_READY;
-    currentMode = MODE_NONE;
-    remainingSeconds = 0;
-    modeSelectionActive = true;
     lastActivityMillis = millis();
     welcomeStartMillis = millis();
     welcomeActive = true;
   }
-  if (encoderPressed) {
-    buttonBeep();
-  } else if (encoderDetents != 0) {
-    buttonBeep(ENCODER_BEEP_MS);
+  if (!welcomeActive) {
+    if (encoderPressed) {
+      buttonBeep();
+    } else if (encoderDetents != 0) {
+      buttonBeep(ENCODER_BEEP_MS);
+    }
   }
   updateButtonBeep();
 
@@ -389,8 +387,14 @@ void loop() {
     return;
   }
 
-  handleEncoderRotation(encoderDetents);
-  handleEncoderButton(encoderPressed, encoderReleased);
+  if (welcomeActive) {
+    encoderPressTracking = false;
+    startStopLongActionDone = false;
+    ignoreEncoderClickUntilRelease = bEncoderButton.read() == LOW;
+  } else {
+    handleEncoderRotation(encoderDetents);
+    handleEncoderButton(encoderPressed, encoderReleased);
+  }
 
   updateTimer();
   handleLowBatteryWarning();
@@ -460,11 +464,12 @@ void handleEncoderRotation(int16_t detents) {
 void handleEncoderButton(bool pressed, bool released) {
   if (pressed) {
     encoderPressStart = millis();
+    encoderPressTracking = true;
     startStopLongActionDone = false;
     lastActivityMillis = millis();
   }
 
-  if (bEncoderButton.read() == LOW && !ignoreEncoderClickUntilRelease &&
+  if (encoderPressTracking && bEncoderButton.read() == LOW && !ignoreEncoderClickUntilRelease &&
       !startStopLongActionDone &&
       millis() - encoderPressStart >= RESET_HOLD_MS) {
     resetToPreset();
@@ -475,9 +480,12 @@ void handleEncoderButton(bool pressed, bool released) {
   if (!released) return;
   if (ignoreEncoderClickUntilRelease) {
     ignoreEncoderClickUntilRelease = false;
+    encoderPressTracking = false;
     startStopLongActionDone = false;
     return;
   }
+  if (!encoderPressTracking) return;
+  encoderPressTracking = false;
 
   if (!startStopLongActionDone) {
     if (state == STATE_READY) {
