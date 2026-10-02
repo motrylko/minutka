@@ -210,7 +210,7 @@ const unsigned long PAUSE_SLEEP_MS    = 600000UL;
 const unsigned long DIM_DELAY_MS      = 60000UL;
 const uint8_t DISPLAY_CONTRAST        = 255;
 const uint8_t DIMMED_CONTRAST         = 1;
-const uint16_t DISPLAY_POWER_STARTUP_MS = 100;
+const uint16_t DISPLAY_POWER_STARTUP_MS = 200;
 const unsigned long BATTERY_SAMPLE_INTERVAL_MS = 1000UL;
 const uint16_t LOW_BATTERY_THRESHOLD_MV = 3600;
 const unsigned long LOW_BATTERY_INTERVAL_MS = 60000UL;
@@ -291,6 +291,7 @@ void setup() {
 
   digitalWrite(DISPLAY_POWER_PIN, LOW);
   delay(DISPLAY_POWER_STARTUP_MS);
+  Wire.setWireTimeout(25000UL, true);
   u8g2.begin();
   Wire.setClock(400000UL);
 
@@ -482,15 +483,20 @@ void handleEncoderButton(bool pressed, bool released) {
     if (state == STATE_READY) {
       if (modeSelectionActive && currentMode == MODE_NONE) {
         modeSelectionActive = false;
-      } else if (remainingSeconds > 0) {
-        totalSecondsAtStart = remainingSeconds;
-        lastSecondTick = millis();
-        runningStartMillis = millis();
-        pauseStartMillis = 0;
-        restoreDisplayBrightness();
-        animFrame = 0;
-        state = STATE_RUNNING;
-        modeSelectionActive = false;
+      } else {
+        if (modeSelectionActive) {
+          remainingSeconds = presetSecondsFor(currentMode);
+        }
+        if (remainingSeconds > 0) {
+          totalSecondsAtStart = remainingSeconds;
+          lastSecondTick = millis();
+          runningStartMillis = millis();
+          pauseStartMillis = 0;
+          restoreDisplayBrightness();
+          animFrame = 0;
+          state = STATE_RUNNING;
+          modeSelectionActive = false;
+        }
       }
     } else if (state == STATE_RUNNING) {
       state = STATE_PAUSED;
@@ -528,6 +534,7 @@ void wakeDisplay() {
   if (isDisplaySleeping) {
     digitalWrite(DISPLAY_POWER_PIN, LOW);
     delay(DISPLAY_POWER_STARTUP_MS);
+    Wire.setWireTimeout(25000UL, true);
     u8g2.begin();
     Wire.setClock(400000UL);
   }
